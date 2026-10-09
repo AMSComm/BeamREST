@@ -152,3 +152,73 @@ pub fn save_last_workspace_path(path: String) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct RecentWorkspace {
+    pub path: String,
+    pub name: String,
+    pub last_opened: i64,
+}
+
+#[command]
+pub fn get_recent_workspaces() -> Result<Vec<RecentWorkspace>, String> {
+    if let Some(cfg) = get_app_config_dir() {
+        let file = cfg.join("recent_workspaces.json");
+        if file.exists() {
+            if let Ok(content) = fs::read_to_string(file) {
+                if let Ok(mut list) = serde_json::from_str::<Vec<RecentWorkspace>>(&content) {
+                    list.retain(|w| PathBuf::from(&w.path).exists());
+                    list.sort_by(|a, b| b.last_opened.cmp(&a.last_opened));
+                    return Ok(list);
+                }
+            }
+        }
+    }
+    Ok(Vec::new())
+}
+
+#[command]
+pub fn save_recent_workspace(path: String, name: String) -> Result<Vec<RecentWorkspace>, String> {
+    let mut list = get_recent_workspaces().unwrap_or_default();
+    let now = chrono::Utc::now().timestamp_millis();
+
+    if let Some(pos) = list.iter().position(|w| w.path == path) {
+        list[pos].name = name;
+        list[pos].last_opened = now;
+    } else {
+        list.push(RecentWorkspace {
+            path,
+            name,
+            last_opened: now,
+        });
+    }
+
+    list.sort_by(|a, b| b.last_opened.cmp(&a.last_opened));
+    if list.len() > 10 {
+        list.truncate(10);
+    }
+
+    if let Some(cfg) = get_app_config_dir() {
+        let file = cfg.join("recent_workspaces.json");
+        if let Ok(json_str) = serde_json::to_string_pretty(&list) {
+            let _ = fs::write(file, json_str);
+        }
+    }
+
+    Ok(list)
+}
+
+#[command]
+pub fn remove_recent_workspace(path: String) -> Result<Vec<RecentWorkspace>, String> {
+    let mut list = get_recent_workspaces().unwrap_or_default();
+    list.retain(|w| w.path != path);
+
+    if let Some(cfg) = get_app_config_dir() {
+        let file = cfg.join("recent_workspaces.json");
+        if let Ok(json_str) = serde_json::to_string_pretty(&list) {
+            let _ = fs::write(file, json_str);
+        }
+    }
+
+    Ok(list)
+}

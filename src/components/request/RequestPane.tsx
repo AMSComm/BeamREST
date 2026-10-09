@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 import { CodeEditor } from '../common/CodeEditor'
+import { VariableInput } from '../common/VariableInput'
 import { ExtractorRule, KeyValuePair } from '../../types'
 import { parseCurlCommand } from '../../utils/curlParser'
 
@@ -113,8 +114,7 @@ export const RequestPane: React.FC = () => {
     }
   }
 
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value
+  const handleUrlChange = (val: string) => {
     if (val.trim().toLowerCase().startsWith('curl ')) {
       const parsed = parseCurlCommand(val)
       if (parsed) {
@@ -152,9 +152,8 @@ export const RequestPane: React.FC = () => {
 
         {/* URL Input */}
         <div className="relative flex-1">
-          <input
+          <VariableInput
             data-testid="request-url-input"
-            type="text"
             value={activeRequest.url}
             onChange={handleUrlChange}
             onPaste={handleUrlPaste}
@@ -261,18 +260,16 @@ export const RequestPane: React.FC = () => {
                       }
                       className="accent-[#0ea5e9]"
                     />
-                    <input
-                      type="text"
+                    <VariableInput
                       placeholder="Key"
                       value={param.key}
-                      onChange={(e) => handleUpdateParam(idx, { key: e.target.value })}
+                      onChange={(val) => handleUpdateParam(idx, { key: val })}
                       className="w-1/3 rounded border border-[#1e293b] bg-[#131b2e] px-2 py-1 text-xs text-white focus:border-[#38bdf8] focus:outline-none"
                     />
-                    <input
-                      type="text"
+                    <VariableInput
                       placeholder="Value (supports {{variables}})"
                       value={param.value}
-                      onChange={(e) => handleUpdateParam(idx, { value: e.target.value })}
+                      onChange={(val) => handleUpdateParam(idx, { value: val })}
                       className="flex-1 rounded border border-[#1e293b] bg-[#131b2e] px-2 py-1 text-xs text-white focus:border-[#38bdf8] focus:outline-none"
                     />
                     <button
@@ -318,18 +315,16 @@ export const RequestPane: React.FC = () => {
                       }
                       className="accent-[#0ea5e9]"
                     />
-                    <input
-                      type="text"
+                    <VariableInput
                       placeholder="Header Name"
                       value={header.key}
-                      onChange={(e) => handleUpdateHeader(idx, { key: e.target.value })}
+                      onChange={(val) => handleUpdateHeader(idx, { key: val })}
                       className="w-1/3 rounded border border-[#1e293b] bg-[#131b2e] px-2 py-1 text-xs text-white focus:border-[#38bdf8] focus:outline-none"
                     />
-                    <input
-                      type="text"
+                    <VariableInput
                       placeholder="Header Value"
                       value={header.value}
-                      onChange={(e) => handleUpdateHeader(idx, { value: e.target.value })}
+                      onChange={(val) => handleUpdateHeader(idx, { value: val })}
                       className="flex-1 rounded border border-[#1e293b] bg-[#131b2e] px-2 py-1 text-xs text-white focus:border-[#38bdf8] focus:outline-none"
                     />
                     <button
@@ -411,13 +406,12 @@ export const RequestPane: React.FC = () => {
             {activeRequest.auth?.type === 'bearer' && (
               <div className="space-y-1">
                 <label className="text-[11px] text-[#94a3b8]">Bearer Token (supports variables)</label>
-                <input
-                  type="text"
+                <VariableInput
                   placeholder="e.g. {{jwt_token}}"
                   value={activeRequest.auth?.token || ''}
-                  onChange={(e) =>
+                  onChange={(val) =>
                     updateActiveRequest({
-                      auth: { ...activeRequest.auth, type: 'bearer', token: e.target.value },
+                      auth: { ...activeRequest.auth, type: 'bearer', token: val },
                     })
                   }
                   className="w-full rounded border border-[#1e293b] bg-[#131b2e] px-2.5 py-1.5 font-mono text-xs text-white focus:border-[#38bdf8] focus:outline-none"
@@ -430,13 +424,12 @@ export const RequestPane: React.FC = () => {
               <div className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-[11px] text-[#94a3b8]">Username</label>
-                  <input
-                    type="text"
+                  <VariableInput
                     placeholder="Username"
                     value={activeRequest.auth?.username || ''}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       updateActiveRequest({
-                        auth: { ...activeRequest.auth, type: 'basic', username: e.target.value },
+                        auth: { ...activeRequest.auth, type: 'basic', username: val },
                       })
                     }
                     className="w-full rounded border border-[#1e293b] bg-[#131b2e] px-2.5 py-1.5 font-mono text-xs text-white focus:border-[#38bdf8] focus:outline-none"
@@ -464,13 +457,12 @@ export const RequestPane: React.FC = () => {
               <div className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-[11px] text-[#94a3b8]">Key</label>
-                  <input
-                    type="text"
+                  <VariableInput
                     placeholder="e.g. X-API-Key"
                     value={activeRequest.auth?.key || ''}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       updateActiveRequest({
-                        auth: { ...activeRequest.auth, type: 'apikey', key: e.target.value },
+                        auth: { ...activeRequest.auth, type: 'apikey', key: val },
                       })
                     }
                     className="w-full rounded border border-[#1e293b] bg-[#131b2e] px-2.5 py-1.5 font-mono text-xs text-white focus:border-[#38bdf8] focus:outline-none"
@@ -478,13 +470,12 @@ export const RequestPane: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[11px] text-[#94a3b8]">Value</label>
-                  <input
-                    type="text"
+                  <VariableInput
                     placeholder="e.g. {{apiKey}}"
                     value={activeRequest.auth?.value || ''}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       updateActiveRequest({
-                        auth: { ...activeRequest.auth, type: 'apikey', value: e.target.value },
+                        auth: { ...activeRequest.auth, type: 'apikey', value: val },
                       })
                     }
                     className="w-full rounded border border-[#1e293b] bg-[#131b2e] px-2.5 py-1.5 font-mono text-xs text-white focus:border-[#38bdf8] focus:outline-none"

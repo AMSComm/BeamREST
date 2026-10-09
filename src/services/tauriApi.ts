@@ -6,6 +6,7 @@ import {
   LocalState,
   ProjectData,
   ProxyConfig,
+  RecentWorkspace,
   WorkspaceFull,
   WorkspaceMeta,
 } from '../types'
@@ -232,6 +233,34 @@ export const tauriApi = {
     if (isTauri()) {
       return await invoke<void>('save_last_workspace_path', { path })
     }
+  },
+
+  async getRecentWorkspaces(): Promise<RecentWorkspace[]> {
+    if (isTauri()) {
+      return await invoke<RecentWorkspace[]>('get_recent_workspaces')
+    }
+    const raw = localStorage.getItem('beamrest:recent_workspaces')
+    return raw ? JSON.parse(raw) : []
+  },
+
+  async saveRecentWorkspace(path: string, name: string): Promise<RecentWorkspace[]> {
+    if (isTauri()) {
+      return await invoke<RecentWorkspace[]>('save_recent_workspace', { path, name })
+    }
+    const list: RecentWorkspace[] = (await this.getRecentWorkspaces()).filter((w) => w.path !== path)
+    list.unshift({ path, name, last_opened: Date.now() })
+    const trimmed = list.slice(0, 10)
+    localStorage.setItem('beamrest:recent_workspaces', JSON.stringify(trimmed))
+    return trimmed
+  },
+
+  async removeRecentWorkspace(path: string): Promise<RecentWorkspace[]> {
+    if (isTauri()) {
+      return await invoke<RecentWorkspace[]>('remove_recent_workspace', { path })
+    }
+    const list: RecentWorkspace[] = (await this.getRecentWorkspaces()).filter((w) => w.path !== path)
+    localStorage.setItem('beamrest:recent_workspaces', JSON.stringify(list))
+    return list
   },
 }
 

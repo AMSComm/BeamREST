@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   FolderOpen,
   PlusCircle,
@@ -10,6 +10,8 @@ import {
   Edit2,
   Check,
   Globe,
+  ChevronDown,
+  Trash2,
 } from 'lucide-react'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
@@ -18,6 +20,9 @@ import { isTauri } from '../../services/tauriApi'
 export const Header: React.FC = () => {
   const {
     workspace,
+    recentWorkspaces,
+    fetchRecentWorkspaces,
+    removeRecentWorkspace,
     loadWorkspace,
     renameWorkspace,
     proxy,
@@ -31,6 +36,31 @@ export const Header: React.FC = () => {
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [editedName, setEditedName] = useState('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetchRecentWorkspaces()
+  }, [fetchRecentWorkspaces])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isDropdownOpen) {
+        setIsDropdownOpen(false)
+      }
+    }
+    window.addEventListener('mousedown', handleClickOutside)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isDropdownOpen])
 
   const handleOpenFolder = async () => {
     try {
@@ -77,7 +107,8 @@ export const Header: React.FC = () => {
 
         <div className="h-4 w-px bg-[#1e293b]" />
 
-        <div className="flex items-center gap-1.5 text-[#94a3b8]">
+        {/* Workspace Dropdown & Inline Rename */}
+        <div ref={dropdownRef} className="relative flex items-center gap-1.5 text-[#94a3b8]">
           <Layers className="h-3.5 w-3.5 text-[#64748b]" />
           {isEditingName ? (
             <div className="flex items-center gap-1">
@@ -115,13 +146,22 @@ export const Header: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 group">
-              <span
-                data-testid="header-workspace-name"
-                className="max-w-[200px] truncate font-medium text-[#f8fafc]"
+            <div className="flex items-center gap-1">
+              <button
+                data-testid="header-workspace-dropdown-btn"
+                onClick={() => setIsDropdownOpen((prev) => !prev)}
+                className="flex items-center gap-1.5 rounded px-2 py-1 text-[#f8fafc] hover:bg-[#131b2e] transition-colors cursor-pointer"
+                title="Click to switch workspace or manage"
               >
-                {workspace?.meta.name || 'No Workspace Loaded'}
-              </span>
+                <span
+                  data-testid="header-workspace-name"
+                  className="max-w-[200px] truncate font-medium text-[#f8fafc]"
+                >
+                  {workspace?.meta.name || 'No Workspace Loaded'}
+                </span>
+                <ChevronDown className="h-3 w-3 text-[#64748b]" />
+              </button>
+
               {workspace && (
                 <button
                   data-testid="header-rename-ws-btn"
@@ -129,12 +169,114 @@ export const Header: React.FC = () => {
                     setEditedName(workspace.meta.name)
                     setIsEditingName(true)
                   }}
-                  className="opacity-0 group-hover:opacity-100 rounded p-0.5 text-[#64748b] hover:text-[#38bdf8] transition-all"
+                  className="rounded p-1 text-[#64748b] hover:text-[#38bdf8] hover:bg-[#131b2e] transition-all"
                   title="Rename Workspace"
                 >
                   <Edit2 className="h-3 w-3" />
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Recent Workspaces Dropdown Menu */}
+          {isDropdownOpen && (
+            <div
+              data-testid="header-workspace-dropdown-menu"
+              className="absolute top-8 left-0 z-50 w-72 rounded-lg border border-[#1e293b] bg-[#0b0f19] shadow-2xl p-1.5 text-xs select-none"
+            >
+              <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#64748b]">
+                Recent Workspaces
+              </div>
+
+              <div className="max-h-56 overflow-y-auto space-y-0.5 my-1">
+                {recentWorkspaces.length === 0 ? (
+                  <div className="px-2 py-2 text-center text-[#64748b]">
+                    No recent workspaces recorded.
+                  </div>
+                ) : (
+                  recentWorkspaces.map((rw, idx) => {
+                    const isCurrent = workspace?.path === rw.path
+                    return (
+                      <div
+                        key={rw.path}
+                        data-testid={`header-recent-workspace-${idx}`}
+                        onClick={async () => {
+                          setIsDropdownOpen(false)
+                          if (!isCurrent) {
+                            await loadWorkspace(rw.path)
+                          }
+                        }}
+                        className={`group flex items-center justify-between rounded px-2 py-1.5 cursor-pointer transition-colors ${
+                          isCurrent
+                            ? 'bg-[#131b2e] text-[#38bdf8]'
+                            : 'text-[#cbd5e1] hover:bg-[#131b2e] hover:text-white'
+                        }`}
+                      >
+                        <div className="flex flex-col truncate pr-2">
+                          <div className="flex items-center gap-1.5">
+                            {isCurrent && <Check className="h-3 w-3 text-[#10b981] shrink-0" />}
+                            <span className="font-medium truncate">{rw.name}</span>
+                          </div>
+                          <span className="font-mono text-[10px] text-[#64748b] truncate">
+                            {rw.path}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeRecentWorkspace(rw.path)
+                          }}
+                          className="opacity-0 group-hover:opacity-100 rounded p-1 text-[#64748b] hover:bg-[#1e293b] hover:text-[#ef4444] transition-all"
+                          title="Remove from recents"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              <div className="h-px bg-[#1e293b] my-1" />
+
+              <div className="space-y-0.5">
+                {workspace && (
+                  <button
+                    onClick={() => {
+                      setIsDropdownOpen(false)
+                      setEditedName(workspace.meta.name)
+                      setIsEditingName(true)
+                    }}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-[#cbd5e1] hover:bg-[#131b2e] hover:text-white transition-colors"
+                  >
+                    <Edit2 className="h-3.5 w-3.5 text-[#38bdf8]" />
+                    <span>Rename Current Workspace</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setIsDropdownOpen(false)
+                    handleOpenFolder()
+                  }}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-[#cbd5e1] hover:bg-[#131b2e] hover:text-white transition-colors"
+                >
+                  <FolderOpen className="h-3.5 w-3.5 text-[#94a3b8]" />
+                  <span>Open Existing Directory...</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsDropdownOpen(false)
+                    handleNewWorkspace()
+                  }}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-[#38bdf8] hover:bg-[#0284c7]/20 transition-colors"
+                >
+                  <PlusCircle className="h-3.5 w-3.5 text-[#38bdf8]" />
+                  <span>Create New Workspace...</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

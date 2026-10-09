@@ -62,7 +62,7 @@ export const Sidebar: React.FC = () => {
   }
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-[#1e293b] bg-[#080c14] text-xs select-none">
+    <aside className="flex h-full w-full flex-col bg-[#080c14] text-xs select-none">
       {/* Sidebar Header */}
       <div className="flex h-10 items-center justify-between border-b border-[#1e293b] px-3">
         <span className="font-semibold uppercase tracking-wider text-[#64748b]">

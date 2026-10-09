@@ -110,3 +110,9 @@ export interface ProxyConfig {
   url: string
 }
 
+export interface RecentWorkspace {
+  path: string
+  name: string
+  last_opened: number
+}
+

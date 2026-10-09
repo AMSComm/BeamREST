@@ -6,11 +6,13 @@ import {
   Environment,
   ProjectData,
   ProxyConfig,
+  RecentWorkspace,
   WorkspaceFull,
 } from '../types'
 
 interface WorkspaceState {
   workspace: WorkspaceFull | null
+  recentWorkspaces: RecentWorkspace[]
   activeProjectId: string | null
   activeRequestId: string | null
   activeRequest: BeamRequest | null
@@ -67,6 +69,7 @@ interface WorkspaceState {
   saveWorkspaceMeta: (meta: WorkspaceFull['meta']) => Promise<void>
   renameWorkspace: (newName: string) => Promise<void>
   getResolvedVariables: () => Record<string, string>
+  getAllVariablesList: () => Array<{ key: string; value: string; scope: string; is_secret: boolean }>
   setActiveTab: (tab: WorkspaceState['activeTab']) => void
   setResponseTab: (tab: WorkspaceState['responseTab']) => void
   setWorkspaceModalOpen: (open: boolean) => void
@@ -87,10 +90,14 @@ interface WorkspaceState {
   closeConfirmDelete: () => void
   copyCurl: () => Promise<string>
   updateCurlText: () => Promise<string>
+  fetchRecentWorkspaces: () => Promise<void>
+  removeRecentWorkspace: (path: string) => Promise<void>
+  closeTopModal: () => boolean
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   workspace: null,
+  recentWorkspaces: [],
   activeProjectId: null,
   activeRequestId: null,
   activeRequest: null,
@@ -179,6 +186,48 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     return map
   },
 
+  getAllVariablesList: () => {
+    const { workspace, activeProjectId } = get()
+    if (!workspace) return []
+
+    const map = new Map<string, { key: string; value: string; scope: string; is_secret: boolean }>()
+
+    // 1. Workspace scope variables
+    for (const v of workspace.meta.variables) {
+      if (v.key) {
+        map.set(v.key, { key: v.key, value: v.value, scope: 'workspace', is_secret: v.is_secret })
+      }
+    }
+
+    // 2. Environment scope variables
+    if (workspace.meta.active_environment_id) {
+      const activeEnv = workspace.environments.find(
+        (e) => e.id === workspace.meta.active_environment_id
+      )
+      if (activeEnv) {
+        for (const v of activeEnv.variables) {
+          if (v.key) {
+            map.set(v.key, { key: v.key, value: v.value, scope: 'environment', is_secret: v.is_secret })
+          }
+        }
+      }
+    }
+
+    // 3. Project scope variables (highest precedence)
+    if (activeProjectId) {
+      const activeProj = workspace.projects.find((p) => p.id === activeProjectId)
+      if (activeProj) {
+        for (const v of activeProj.variables) {
+          if (v.key) {
+            map.set(v.key, { key: v.key, value: v.value, scope: 'project', is_secret: v.is_secret })
+          }
+        }
+      }
+    }
+
+    return Array.from(map.values())
+  },
+
   loadWorkspace: async (path: string) => {
     try {
       const ws = await tauriApi.openWorkspace(path)
@@ -188,7 +237,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           snapshots[r.id] = JSON.stringify(r)
         }
       }
-      set({ workspace: ws, error: null, savedRequestSnapshots: snapshots })
+      const recents = await tauriApi.saveRecentWorkspace(path, ws.meta.name)
+      set({
+        workspace: ws,
+        error: null,
+        savedRequestSnapshots: snapshots,
+        recentWorkspaces: recents,
+      })
       await tauriApi.saveLastWorkspacePath(path)
 
       // Auto-select first request if available
@@ -215,7 +270,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           snapshots[r.id] = JSON.stringify(r)
         }
       }
-      set({ workspace: ws, error: null, savedRequestSnapshots: snapshots })
+      const recents = await tauriApi.saveRecentWorkspace(path, name)
+      set({
+        workspace: ws,
+        error: null,
+        savedRequestSnapshots: snapshots,
+        recentWorkspaces: recents,
+      })
       await tauriApi.saveLastWorkspacePath(path)
 
       if (ws.projects.length > 0 && ws.projects[0].requests.length > 0) {
@@ -548,9 +609,68 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     const updatedMeta = { ...workspace.meta, name: newName.trim() }
     await tauriApi.saveWorkspaceMeta(workspace.path, updatedMeta)
+    const recents = await tauriApi.saveRecentWorkspace(workspace.path, newName.trim())
     set({
       workspace: { ...workspace, meta: updatedMeta },
+      recentWorkspaces: recents,
     })
+  },
+
+  fetchRecentWorkspaces: async () => {
+    const recents = await tauriApi.getRecentWorkspaces()
+    set({ recentWorkspaces: recents })
+  },
+
+  removeRecentWorkspace: async (path: string) => {
+    const recents = await tauriApi.removeRecentWorkspace(path)
+    set({ recentWorkspaces: recents })
+  },
+
+  closeTopModal: () => {
+    const {
+      confirmDeleteTarget,
+      isProxyModalOpen,
+      isEnvModalOpen,
+      isExportModalOpen,
+      isWorkspaceModalOpen,
+      isNewRequestModalOpen,
+      isNewProjectModalOpen,
+      isShortcutsModalOpen,
+    } = get()
+
+    if (confirmDeleteTarget) {
+      set({ confirmDeleteTarget: null })
+      return true
+    }
+    if (isProxyModalOpen) {
+      set({ isProxyModalOpen: false })
+      return true
+    }
+    if (isEnvModalOpen) {
+      set({ isEnvModalOpen: false })
+      return true
+    }
+    if (isExportModalOpen) {
+      set({ isExportModalOpen: false })
+      return true
+    }
+    if (isWorkspaceModalOpen) {
+      set({ isWorkspaceModalOpen: false })
+      return true
+    }
+    if (isNewRequestModalOpen) {
+      set({ isNewRequestModalOpen: false })
+      return true
+    }
+    if (isNewProjectModalOpen) {
+      set({ isNewProjectModalOpen: false })
+      return true
+    }
+    if (isShortcutsModalOpen) {
+      set({ isShortcutsModalOpen: false })
+      return true
+    }
+    return false
   },
 
   updateCurlText: async () => {

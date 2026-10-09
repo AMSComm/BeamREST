@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Header } from './components/layout/Header'
 import { Sidebar } from './components/layout/Sidebar'
 import { RequestPane } from './components/request/RequestPane'
@@ -27,7 +27,24 @@ export const App: React.FC = () => {
     setNewProjectModalOpen,
     openNewRequestModal,
     setShortcutsModalOpen,
+    closeTopModal,
   } = useWorkspaceStore()
+
+  // Resizable panels state
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('beamrest:sidebar_width')
+    const parsed = saved ? parseInt(saved, 10) : 260
+    return isNaN(parsed) ? 260 : Math.max(180, Math.min(450, parsed))
+  })
+
+  const [splitRatio, setSplitRatio] = useState<number>(() => {
+    const saved = localStorage.getItem('beamrest:split_ratio')
+    const parsed = saved ? parseFloat(saved) : 50
+    return isNaN(parsed) ? 50 : Math.max(25, Math.min(75, parsed))
+  })
+
+  const [draggingType, setDraggingType] = useState<'sidebar' | 'split' | null>(null)
+  const mainContainerRef = useRef<HTMLElement>(null)
 
   // On mount: restore last active workspace or initialize default
   useEffect(() => {
@@ -52,6 +69,14 @@ export const App: React.FC = () => {
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape: Close topmost active modal/dialog first
+      if (e.key === 'Escape') {
+        if (closeTopModal()) {
+          e.preventDefault()
+          return
+        }
+      }
+
       const isCmdOrCtrl = e.metaKey || e.ctrlKey
       const isShift = e.shiftKey
       const isAlt = e.altKey
@@ -129,7 +154,55 @@ export const App: React.FC = () => {
     setNewProjectModalOpen,
     openNewRequestModal,
     setShortcutsModalOpen,
+    closeTopModal,
   ])
+
+  // Mouse move and up handlers for resizing
+  useEffect(() => {
+    if (!draggingType) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (draggingType === 'sidebar') {
+        const clamped = Math.max(180, Math.min(450, e.clientX))
+        setSidebarWidth(clamped)
+        localStorage.setItem('beamrest:sidebar_width', String(clamped))
+      } else if (draggingType === 'split') {
+        if (!mainContainerRef.current) return
+        const rect = mainContainerRef.current.getBoundingClientRect()
+        const rawRatio = ((e.clientX - rect.left) / rect.width) * 100
+        const clamped = Math.max(25, Math.min(75, rawRatio))
+        setSplitRatio(clamped)
+        localStorage.setItem('beamrest:split_ratio', String(clamped))
+      }
+    }
+
+    const handleMouseUp = () => {
+      setDraggingType(null)
+    }
+
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [draggingType])
+
+  const handleSidebarMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setDraggingType('sidebar')
+  }, [])
+
+  const handleSplitMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setDraggingType('split')
+  }, [])
 
   return (
     <div className="flex h-screen w-screen flex-col bg-[#0b0f19] text-[#f8fafc] overflow-hidden select-none">
@@ -137,16 +210,43 @@ export const App: React.FC = () => {
       <Header />
 
       {/* Main Workspace Split Area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Left Explorer Sidebar */}
-        <Sidebar />
+        <div style={{ width: sidebarWidth }} className="flex h-full shrink-0 overflow-hidden">
+          <Sidebar />
+        </div>
+
+        {/* Sidebar Resizer Divider */}
+        <div
+          data-testid="sidebar-resizer"
+          onMouseDown={handleSidebarMouseDown}
+          className={`relative w-1 shrink-0 cursor-col-resize select-none transition-colors ${
+            draggingType === 'sidebar' ? 'bg-[#38bdf8]' : 'bg-[#1e293b] hover:bg-[#38bdf8]'
+          }`}
+          title="Drag to resize sidebar (180px - 450px)"
+        >
+          <div className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize" />
+        </div>
 
         {/* Center Request Editor & Right Response Viewer Split */}
-        <main className="flex flex-1 overflow-hidden">
-          <div className="flex w-1/2 flex-col overflow-hidden">
+        <main ref={mainContainerRef} className="flex flex-1 overflow-hidden">
+          <div style={{ width: `${splitRatio}%` }} className="flex flex-col overflow-hidden h-full">
             <RequestPane />
           </div>
-          <div className="flex w-1/2 flex-col overflow-hidden">
+
+          {/* Split Pane Resizer Divider */}
+          <div
+            data-testid="split-resizer"
+            onMouseDown={handleSplitMouseDown}
+            className={`relative w-1 shrink-0 cursor-col-resize select-none transition-colors ${
+              draggingType === 'split' ? 'bg-[#38bdf8]' : 'bg-[#1e293b] hover:bg-[#38bdf8]'
+            }`}
+            title="Drag to resize panels (25% - 75%)"
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize" />
+          </div>
+
+          <div style={{ width: `${100 - splitRatio}%` }} className="flex flex-col overflow-hidden h-full">
             <ResponsePane />
           </div>
         </main>

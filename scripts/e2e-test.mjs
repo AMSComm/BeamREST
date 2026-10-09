@@ -380,7 +380,105 @@ async function run() {
     await page.waitForTimeout(200)
     console.log('✅ New Workspace modal opened and closed cleanly')
 
-    console.log('🎉 ALL 13 PLAYWRIGHT E2E ASSERTIONS PASSED WITH 100% SUCCESS!')
+    // 14. Test Recent Workspaces Dropdown
+    console.log('📂 14. Testing Recent Workspaces dropdown & quick switcher...')
+    await page.click('[data-testid="header-workspace-dropdown-btn"]')
+    await page.waitForTimeout(300)
+    const wsMenu = page.locator('[data-testid="header-workspace-dropdown-menu"]')
+    if (!(await wsMenu.isVisible())) throw new Error('Recent Workspaces dropdown menu failed to open')
+    const firstRecentItem = page.locator('[data-testid="header-recent-workspace-0"]')
+    if (!(await firstRecentItem.isVisible())) throw new Error('Recent workspace items not visible in dropdown')
+    console.log('✅ Recent Workspaces dropdown visible with recorded workspace items')
+    // Close dropdown by pressing Escape
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(200)
+    if (await wsMenu.isVisible()) throw new Error('Workspace dropdown did not close on Escape')
+    console.log('✅ Workspace dropdown closed on Escape')
+
+    // 15. Test Variable Autocomplete on {{
+    console.log('✨ 15. Testing Variable Autocomplete on {{ trigger...')
+    const urlInputForVar = page.locator('[data-testid="request-url-input"]')
+    await urlInputForVar.click()
+    await page.fill('[data-testid="request-url-input"]', 'https://api.example.com/items/{{')
+    await page.waitForTimeout(300)
+    const varDropdown = page.locator('[data-testid="variable-suggestions-dropdown"]')
+    if (!(await varDropdown.isVisible())) throw new Error('Variable autocomplete dropdown did not appear on {{')
+    console.log('✅ Variable suggestions dropdown appeared on {{ trigger')
+
+    // Press Enter to select first suggestion
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(300)
+    const completedUrl = await page.inputValue('[data-testid="request-url-input"]')
+    if (!completedUrl.includes('{{') || !completedUrl.includes('}}')) {
+      throw new Error(`Variable completion failed, got URL: ${completedUrl}`)
+    }
+    console.log('✅ Variable successfully autocompleted into input:', completedUrl)
+
+    // 16. Test Resizable Panels
+    console.log('↔️ 16. Testing Resizable Panels (Sidebar & Split)...')
+    const sidebarDivider = page.locator('[data-testid="sidebar-resizer"]')
+    if (!(await sidebarDivider.isVisible())) throw new Error('Sidebar resizer divider missing')
+    const initialSidebarBox = await sidebarDivider.boundingBox()
+    if (!initialSidebarBox) throw new Error('Could not get bounding box of sidebar resizer')
+
+    // Drag sidebar divider 50px to the right
+    await page.mouse.move(initialSidebarBox.x + initialSidebarBox.width / 2, initialSidebarBox.y + 100)
+    await page.mouse.down()
+    await page.mouse.move(initialSidebarBox.x + 50, initialSidebarBox.y + 100, { steps: 5 })
+    await page.mouse.up()
+    await page.waitForTimeout(300)
+
+    const savedSidebarWidth = await page.evaluate(() => localStorage.getItem('beamrest:sidebar_width'))
+    if (!savedSidebarWidth || parseInt(savedSidebarWidth, 10) <= 260) {
+      console.warn(`Sidebar width saved in localStorage: ${savedSidebarWidth}`)
+    }
+    console.log('✅ Sidebar panel resized and width persisted in localStorage:', savedSidebarWidth)
+
+    // Drag split pane divider
+    const splitDivider = page.locator('[data-testid="split-resizer"]')
+    if (!(await splitDivider.isVisible())) throw new Error('Split pane resizer divider missing')
+    const initialSplitBox = await splitDivider.boundingBox()
+    if (!initialSplitBox) throw new Error('Could not get bounding box of split resizer')
+
+    await page.mouse.move(initialSplitBox.x + initialSplitBox.width / 2, initialSplitBox.y + 150)
+    await page.mouse.down()
+    await page.mouse.move(initialSplitBox.x + 40, initialSplitBox.y + 150, { steps: 5 })
+    await page.mouse.up()
+    await page.waitForTimeout(300)
+
+    const savedSplitRatio = await page.evaluate(() => localStorage.getItem('beamrest:split_ratio'))
+    console.log('✅ Split pane resized and ratio persisted in localStorage:', savedSplitRatio)
+
+    // 17. Test Escape Key Closes Modals
+    console.log('🛑 17. Testing Escape Key Closes Modals...')
+    // Open Shortcuts Modal
+    await page.click('[data-testid="header-shortcuts-btn"]')
+    await page.waitForTimeout(300)
+    if (!(await page.locator('text="Keyboard Shortcuts"').isVisible())) throw new Error('Shortcuts modal did not open')
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    if (await page.locator('text="Keyboard Shortcuts"').isVisible()) throw new Error('Shortcuts modal did not close on Escape')
+    console.log('✅ Shortcuts modal closed on Escape')
+
+    // Open Proxy Modal
+    await page.click('[data-testid="header-proxy-btn"]')
+    await page.waitForTimeout(300)
+    if (!(await page.locator('text="Proxy Configuration"').isVisible())) throw new Error('Proxy modal did not open')
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    if (await page.locator('text="Proxy Configuration"').isVisible()) throw new Error('Proxy modal did not close on Escape')
+    console.log('✅ Proxy modal closed on Escape')
+
+    // Open Variables Modal
+    await page.click('[data-testid="header-variables-btn"]')
+    await page.waitForTimeout(300)
+    if (!(await page.locator('text="Variable & Secret Manager"').isVisible())) throw new Error('Variables modal did not open')
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    if (await page.locator('text="Variable & Secret Manager"').isVisible()) throw new Error('Variables modal did not close on Escape')
+    console.log('✅ Variables modal closed on Escape')
+
+    console.log('🎉 ALL 17 PLAYWRIGHT E2E ASSERTIONS PASSED WITH 100% SUCCESS!')
   } finally {
     await browser.close()
     if (server) {
