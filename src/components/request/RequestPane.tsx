@@ -2,7 +2,6 @@ import React from 'react'
 import {
   Send,
   Save,
-  Terminal,
   Plus,
   Trash2,
   Loader2,
@@ -22,7 +21,7 @@ export const RequestPane: React.FC = () => {
     updateActiveRequest,
     sendRequest,
     saveActiveRequest,
-    copyCurl,
+    isRequestDirty,
     setActiveTab,
   } = useWorkspaceStore()
 
@@ -165,41 +164,35 @@ export const RequestPane: React.FC = () => {
           />
         </div>
 
-        {/* Send Button */}
+        {/* Send Button (Icon Only) */}
         <button
           data-testid="request-send-btn"
           onClick={sendRequest}
           disabled={isSending}
-          className="flex items-center gap-1.5 rounded bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] px-4 py-1.5 font-semibold text-white shadow-sm hover:from-[#0369a1] hover:to-[#0284c7] disabled:opacity-50 transition-all cursor-pointer"
+          className="flex items-center justify-center rounded bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] p-2 font-semibold text-white shadow-sm hover:from-[#0369a1] hover:to-[#0284c7] disabled:opacity-50 transition-all cursor-pointer"
+          title="Send Request (Enter / Cmd+Enter)"
         >
           {isSending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Send className="h-3.5 w-3.5" />
+            <Send className="h-4 w-4" />
           )}
-          <span>Send</span>
         </button>
 
-        {/* Save Button */}
+        {/* Save Button (Icon Only with Unsaved Dot) */}
         <button
           data-testid="request-save-btn"
           onClick={saveActiveRequest}
-          className="flex items-center gap-1 rounded border border-[#1e293b] bg-[#131b2e] px-2.5 py-1.5 text-[#cbd5e1] hover:border-[#334155] hover:text-white transition-colors"
-          title="Save Request File (Cmd+S)"
+          className="relative flex items-center justify-center rounded border border-[#1e293b] bg-[#131b2e] p-2 text-[#cbd5e1] hover:border-[#334155] hover:text-white transition-colors cursor-pointer"
+          title={isRequestDirty() ? 'Save Request (Cmd+S) - Unsaved changes' : 'Save Request (Cmd+S)'}
         >
-          <Save className="h-3.5 w-3.5" />
-          <span>Save</span>
-        </button>
-
-        {/* Copy cURL Button */}
-        <button
-          data-testid="request-curl-btn"
-          onClick={copyCurl}
-          className="flex items-center gap-1 rounded border border-[#1e293b] bg-[#131b2e] px-2.5 py-1.5 text-[#cbd5e1] hover:border-[#38bdf8]/40 hover:text-[#38bdf8] transition-colors"
-          title="Copy Request as cURL command (Cmd+Shift+C)"
-        >
-          <Terminal className="h-3.5 w-3.5" />
-          <span>cURL</span>
+          <Save className="h-4 w-4" />
+          {isRequestDirty() && (
+            <span
+              data-testid="request-unsaved-dot"
+              className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-[#38bdf8]"
+            />
+          )}
         </button>
       </div>
 

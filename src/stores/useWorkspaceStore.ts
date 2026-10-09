@@ -5,6 +5,7 @@ import {
   BeamResponse,
   Environment,
   ProjectData,
+  ProxyConfig,
   WorkspaceFull,
 } from '../types'
 
@@ -18,12 +19,21 @@ interface WorkspaceState {
   error: string | null
   curlText: string | null
 
+  // Proxy
+  proxy: ProxyConfig
+  setProxy: (proxy: ProxyConfig) => void
+
+  // Unsaved snapshots
+  savedRequestSnapshots: Record<string, string>
+  isRequestDirty: (requestId?: string) => boolean
+
   // Tab selections
   activeTab: 'params' | 'headers' | 'body' | 'auth' | 'extractors'
   responseTab: 'body' | 'headers' | 'curl' | 'extracted'
 
   // Modals
   isWorkspaceModalOpen: boolean
+  isProxyModalOpen: boolean
   isEnvModalOpen: boolean
   isExportModalOpen: boolean
   isNewProjectModalOpen: boolean
@@ -55,10 +65,12 @@ interface WorkspaceState {
   deleteEnvironment: (envId: string) => Promise<void>
   saveProject: (project: ProjectData) => Promise<void>
   saveWorkspaceMeta: (meta: WorkspaceFull['meta']) => Promise<void>
+  renameWorkspace: (newName: string) => Promise<void>
   getResolvedVariables: () => Record<string, string>
   setActiveTab: (tab: WorkspaceState['activeTab']) => void
   setResponseTab: (tab: WorkspaceState['responseTab']) => void
   setWorkspaceModalOpen: (open: boolean) => void
+  setProxyModalOpen: (open: boolean) => void
   setEnvModalOpen: (open: boolean) => void
   setExportModalOpen: (open: boolean) => void
   setNewProjectModalOpen: (open: boolean) => void
@@ -74,6 +86,7 @@ interface WorkspaceState {
   }) => void
   closeConfirmDelete: () => void
   copyCurl: () => Promise<string>
+  updateCurlText: () => Promise<string>
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -88,6 +101,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   activeTab: 'params',
   responseTab: 'body',
+  proxy: { enabled: false, url: '' },
+  isProxyModalOpen: false,
+  savedRequestSnapshots: {},
   isWorkspaceModalOpen: false,
   isEnvModalOpen: false,
   isExportModalOpen: false,
@@ -97,8 +113,35 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   isShortcutsModalOpen: false,
   confirmDeleteTarget: null,
 
-
   setWorkspace: (ws) => set({ workspace: ws }),
+  setProxy: (proxy) => {
+    set({ proxy })
+    if (get().responseTab === 'curl') {
+      get().updateCurlText()
+    }
+  },
+
+  isRequestDirty: (requestId?: string) => {
+    const { activeRequestId, activeRequest, savedRequestSnapshots, workspace } = get()
+    const targetId = requestId || activeRequestId
+    if (!targetId) return false
+    const snapshot = savedRequestSnapshots[targetId]
+    if (!snapshot) return false
+
+    if (targetId === activeRequestId && activeRequest) {
+      return JSON.stringify(activeRequest) !== snapshot
+    }
+
+    if (workspace) {
+      for (const p of workspace.projects) {
+        const req = p.requests.find((r) => r.id === targetId)
+        if (req) {
+          return JSON.stringify(req) !== snapshot
+        }
+      }
+    }
+    return false
+  },
 
   getResolvedVariables: () => {
     const { workspace, activeProjectId } = get()
@@ -139,7 +182,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   loadWorkspace: async (path: string) => {
     try {
       const ws = await tauriApi.openWorkspace(path)
-      set({ workspace: ws, error: null })
+      const snapshots: Record<string, string> = {}
+      for (const p of ws.projects) {
+        for (const r of p.requests) {
+          snapshots[r.id] = JSON.stringify(r)
+        }
+      }
+      set({ workspace: ws, error: null, savedRequestSnapshots: snapshots })
       await tauriApi.saveLastWorkspacePath(path)
 
       // Auto-select first request if available
@@ -160,7 +209,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   initWorkspace: async (path: string, name: string) => {
     try {
       const ws = await tauriApi.createWorkspace(path, name)
-      set({ workspace: ws, error: null })
+      const snapshots: Record<string, string> = {}
+      for (const p of ws.projects) {
+        for (const r of p.requests) {
+          snapshots[r.id] = JSON.stringify(r)
+        }
+      }
+      set({ workspace: ws, error: null, savedRequestSnapshots: snapshots })
       await tauriApi.saveLastWorkspacePath(path)
 
       if (ws.projects.length > 0 && ws.projects[0].requests.length > 0) {
@@ -195,7 +250,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   updateActiveRequest: (patch) => {
-    const { activeRequest, workspace, activeProjectId, activeRequestId } = get()
+    const { activeRequest, workspace, activeProjectId, activeRequestId, responseTab } = get()
     if (!activeRequest || !workspace || !activeProjectId || !activeRequestId) return
 
     const updated = { ...activeRequest, ...patch }
@@ -213,27 +268,37 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       activeRequest: updated,
       workspace: { ...workspace, projects: updatedProjects },
     })
+
+    if (responseTab === 'curl') {
+      get().updateCurlText()
+    }
   },
 
   saveActiveRequest: async () => {
-    const { workspace, activeProjectId, activeRequest } = get()
+    const { workspace, activeProjectId, activeRequest, savedRequestSnapshots } = get()
     if (!workspace || !activeProjectId || !activeRequest) return
 
     const proj = workspace.projects.find((p) => p.id === activeProjectId)
     if (!proj) return
 
     await tauriApi.saveRequest(workspace.path, proj.name, activeRequest)
+    set({
+      savedRequestSnapshots: {
+        ...savedRequestSnapshots,
+        [activeRequest.id]: JSON.stringify(activeRequest),
+      },
+    })
   },
 
   sendRequest: async () => {
-    const { activeRequest, getResolvedVariables, workspace, activeProjectId } = get()
+    const { activeRequest, getResolvedVariables, workspace, activeProjectId, proxy } = get()
     if (!activeRequest || !workspace) return
 
     set({ isSending: true, error: null, responseTab: 'body' })
     const vars = getResolvedVariables()
 
     try {
-      const resp = await tauriApi.executeHttpRequest(activeRequest, vars)
+      const resp = await tauriApi.executeHttpRequest(activeRequest, vars, proxy)
       set({ response: resp, isSending: false, responseTab: 'body' })
 
       // If extractors captured any variables, automatically update them into the project
@@ -364,6 +429,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       activeProjectId: projectId,
       activeRequestId: newReq.id,
       activeRequest: { ...newReq },
+      savedRequestSnapshots: {
+        ...get().savedRequestSnapshots,
+        [newReq.id]: JSON.stringify(newReq),
+      },
     })
   },
 
@@ -473,24 +542,49 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     })
   },
 
-  copyCurl: async () => {
-    const { activeRequest, getResolvedVariables } = get()
-    if (!activeRequest) return ''
+  renameWorkspace: async (newName: string) => {
+    const { workspace } = get()
+    if (!workspace || !newName.trim()) return
 
+    const updatedMeta = { ...workspace.meta, name: newName.trim() }
+    await tauriApi.saveWorkspaceMeta(workspace.path, updatedMeta)
+    set({
+      workspace: { ...workspace, meta: updatedMeta },
+    })
+  },
+
+  updateCurlText: async () => {
+    const { activeRequest, getResolvedVariables, proxy } = get()
+    if (!activeRequest) {
+      set({ curlText: '' })
+      return ''
+    }
     const vars = getResolvedVariables()
-    const curl = await tauriApi.generateCurl(activeRequest, vars)
+    const curl = await tauriApi.generateCurl(activeRequest, vars, proxy)
+    set({ curlText: curl })
+    return curl
+  },
+
+  copyCurl: async () => {
+    const curl = await get().updateCurlText()
     try {
       await navigator.clipboard.writeText(curl)
     } catch {
       // ignore
     }
-    set({ curlText: curl, responseTab: 'curl' })
+    set({ responseTab: 'curl' })
     return curl
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),
-  setResponseTab: (tab) => set({ responseTab: tab }),
+  setResponseTab: (tab) => {
+    set({ responseTab: tab })
+    if (tab === 'curl') {
+      get().updateCurlText()
+    }
+  },
   setWorkspaceModalOpen: (open) => set({ isWorkspaceModalOpen: open }),
+  setProxyModalOpen: (open) => set({ isProxyModalOpen: open }),
   setEnvModalOpen: (open) => set({ isEnvModalOpen: open }),
   setExportModalOpen: (open) => set({ isExportModalOpen: open }),
   setNewProjectModalOpen: (open) => set({ isNewProjectModalOpen: open }),

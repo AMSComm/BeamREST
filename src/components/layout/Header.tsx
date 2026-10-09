@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   FolderOpen,
   PlusCircle,
@@ -7,6 +7,9 @@ import {
   Layers,
   Zap,
   Keyboard,
+  Edit2,
+  Check,
+  Globe,
 } from 'lucide-react'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
@@ -16,12 +19,18 @@ export const Header: React.FC = () => {
   const {
     workspace,
     loadWorkspace,
+    renameWorkspace,
+    proxy,
+    setProxyModalOpen,
     setActiveEnvironment,
     setWorkspaceModalOpen,
     setEnvModalOpen,
     setExportModalOpen,
     setShortcutsModalOpen,
   } = useWorkspaceStore()
+
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [editedName, setEditedName] = useState('')
 
   const handleOpenFolder = async () => {
     try {
@@ -70,14 +79,87 @@ export const Header: React.FC = () => {
 
         <div className="flex items-center gap-1.5 text-[#94a3b8]">
           <Layers className="h-3.5 w-3.5 text-[#64748b]" />
-          <span className="max-w-[200px] truncate font-medium text-[#f8fafc]">
-            {workspace?.meta.name || 'No Workspace Loaded'}
-          </span>
+          {isEditingName ? (
+            <div className="flex items-center gap-1">
+              <input
+                data-testid="header-workspace-name-input"
+                type="text"
+                autoFocus
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    if (editedName.trim()) {
+                      await renameWorkspace(editedName.trim())
+                    }
+                    setIsEditingName(false)
+                  } else if (e.key === 'Escape') {
+                    setIsEditingName(false)
+                  }
+                }}
+                className="rounded border border-[#38bdf8] bg-[#131b2e] px-2 py-0.5 text-xs text-white focus:outline-none"
+              />
+              <button
+                data-testid="header-save-ws-name-btn"
+                onClick={async () => {
+                  if (editedName.trim()) {
+                    await renameWorkspace(editedName.trim())
+                  }
+                  setIsEditingName(false)
+                }}
+                className="rounded p-1 text-[#10b981] hover:bg-[#1e293b]"
+                title="Save Name"
+              >
+                <Check className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 group">
+              <span
+                data-testid="header-workspace-name"
+                className="max-w-[200px] truncate font-medium text-[#f8fafc]"
+              >
+                {workspace?.meta.name || 'No Workspace Loaded'}
+              </span>
+              {workspace && (
+                <button
+                  data-testid="header-rename-ws-btn"
+                  onClick={() => {
+                    setEditedName(workspace.meta.name)
+                    setIsEditingName(true)
+                  }}
+                  className="opacity-0 group-hover:opacity-100 rounded p-0.5 text-[#64748b] hover:text-[#38bdf8] transition-all"
+                  title="Rename Workspace"
+                >
+                  <Edit2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Actions & Environment Switcher */}
       <div className="flex items-center gap-2">
+        {/* Proxy Settings Button */}
+        <button
+          data-testid="header-proxy-btn"
+          onClick={() => setProxyModalOpen(true)}
+          className={`flex items-center gap-1.5 rounded border px-2.5 py-1 transition-colors ${
+            proxy.enabled
+              ? 'border-[#0284c7]/50 bg-[#0284c7]/20 text-[#38bdf8] hover:bg-[#0284c7]/30'
+              : 'border-[#1e293b] bg-[#131b2e] text-[#94a3b8] hover:border-[#38bdf8]/40 hover:text-white'
+          }`}
+          title="Configure HTTP/SOCKS Proxy"
+        >
+          <Globe className={`h-3.5 w-3.5 ${proxy.enabled ? 'text-[#38bdf8]' : 'text-[#64748b]'}`} />
+          <span>Proxy:</span>
+          <span className={`font-mono text-[10px] font-bold ${proxy.enabled ? 'text-[#38bdf8]' : 'text-[#64748b]'}`}>
+            {proxy.enabled ? 'ON' : 'OFF'}
+          </span>
+        </button>
+
         {/* Environment Picker */}
         {workspace && (
           <div className="flex items-center gap-1.5 rounded border border-[#1e293b] bg-[#0f172a] px-2 py-1">

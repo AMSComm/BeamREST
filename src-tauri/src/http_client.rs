@@ -65,6 +65,14 @@ fn default_body_type() -> String {
     "none".to_string()
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProxyConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub url: String, // e.g. "http://127.0.0.1:8080" or "socks5://127.0.0.1:1080"
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BeamResponse {
     pub status: u16,
@@ -87,13 +95,24 @@ pub fn interpolate_variables(input: &str, variables: &HashMap<String, String>) -
     result
 }
 
-/// Executes an HTTP request with timing and extractor evaluation.
+/// Executes an HTTP request with timing, proxy support, and extractor evaluation.
 pub async fn execute_request(
     request: BeamRequest,
     variables: &HashMap<String, String>,
+    proxy_config: Option<ProxyConfig>,
 ) -> Result<BeamResponse, String> {
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
+    let mut client_builder = Client::builder()
+        .timeout(std::time::Duration::from_secs(60));
+
+    if let Some(ref proxy) = proxy_config {
+        if proxy.enabled && !proxy.url.trim().is_empty() {
+            let proxy_obj = reqwest::Proxy::all(&proxy.url)
+                .map_err(|e| format!("Invalid proxy configuration '{}': {}", proxy.url, e))?;
+            client_builder = client_builder.proxy(proxy_obj);
+        }
+    }
+
+    let client = client_builder
         .build()
         .map_err(|e| format!("Failed to initialize HTTP client: {}", e))?;
 

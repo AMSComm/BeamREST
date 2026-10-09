@@ -2,13 +2,24 @@ use std::collections::HashMap;
 
 use serde_json::{json, Value};
 
-use crate::http_client::{interpolate_variables, AuthConfig, BeamRequest};
+use crate::http_client::{interpolate_variables, AuthConfig, BeamRequest, ProxyConfig};
 use crate::storage::{ProjectData, Variable, WorkspaceFull};
 
 /// Generates a standard cURL command from a BeamRequest.
-pub fn to_curl(request: &BeamRequest, variables: &HashMap<String, String>) -> String {
+pub fn to_curl(
+    request: &BeamRequest,
+    variables: &HashMap<String, String>,
+    proxy: Option<&ProxyConfig>,
+) -> String {
     let mut parts = Vec::new();
     parts.push("curl".to_string());
+
+    // Proxy flag
+    if let Some(p) = proxy {
+        if p.enabled && !p.url.trim().is_empty() {
+            parts.push(format!("-x \"{}\"", p.url.trim()));
+        }
+    }
 
     // Method
     let method = request.method.to_uppercase();
@@ -297,7 +308,7 @@ mod tests {
         };
 
         let vars = HashMap::new();
-        let curl = to_curl(&req, &vars);
+        let curl = to_curl(&req, &vars, None);
 
         assert!(curl.contains("-X POST"));
         assert!(curl.contains("-H \"Content-Type: application/json\""));

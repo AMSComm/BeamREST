@@ -223,7 +223,7 @@ export const EnvironmentModal: React.FC = () => {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-[#94a3b8]">
                   Variables scoped to <strong className="text-white">{activeProject.name}</strong>.
-                  Secrets are stored in <code className="text-[#38bdf8]">project.local.json</code> and excluded from Git.
+                  Secret keys are saved with empty values; secret values remain in-memory only and are never saved to disk.
                 </span>
                 <button
                   data-testid="env-add-project-var-btn"
@@ -381,7 +381,7 @@ export const EnvironmentModal: React.FC = () => {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[#94a3b8]">
                       Variables for <strong className="text-white">{currentEnv.name}</strong>.
-                      Secrets saved to <code className="text-[#38bdf8]">{currentEnv.name}.env.local.json</code> and excluded from Git.
+                      Secret keys are saved with empty values; secret values remain in-memory only.
                     </span>
                     <button
                       onClick={handleAddEnvVar}
@@ -462,7 +462,7 @@ export const EnvironmentModal: React.FC = () => {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-[#94a3b8]">
                   Global variables for <strong className="text-white">{workspace.meta.name}</strong>.
-                  Shared across all projects; secrets saved to <code className="text-[#38bdf8]">workspace.local.json</code>.
+                  Secret keys are saved with empty values; secret values remain in-memory only.
                 </span>
                 <button
                   data-testid="env-add-workspace-var-btn"

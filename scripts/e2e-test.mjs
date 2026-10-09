@@ -168,13 +168,49 @@ async function run() {
     await extractorField.fill('origin')
     console.log('✅ Auto Extractor rule added')
 
-    // 6. Test cURL Generation
-    console.log('⚡ 6. Testing cURL generation...')
-    await page.click('[data-testid="request-curl-btn"]')
+    // 6. Test Icon-Only Buttons, Unsaved Dot Indicator & Live cURL Tab
+    console.log('⚡ 6. Testing icon-only buttons, unsaved indicator, and live cURL tab...')
+    // Verify no standalone cURL button next to Save
+    const standaloneCurlBtnCount = await page.locator('[data-testid="request-curl-btn"]').count()
+    if (standaloneCurlBtnCount > 0) throw new Error('Standalone cURL button should be removed')
+    console.log('✅ Standalone cURL button removed')
+
+    // Verify Send and Save buttons are icon-only
+    const sendBtnText = (await page.locator('[data-testid="request-send-btn"]').innerText()).trim()
+    if (sendBtnText !== '') throw new Error(`Send button should be icon-only, found: "${sendBtnText}"`)
+    const saveBtnText = (await page.locator('[data-testid="request-save-btn"]').innerText()).trim()
+    if (saveBtnText !== '') throw new Error(`Save button should be icon-only, found: "${saveBtnText}"`)
+    console.log('✅ Send and Save buttons verified as icon-only')
+
+    // Verify Unsaved indicator dot is visible because request was edited
+    const unsavedDot = page.locator('[data-testid="request-unsaved-dot"]')
+    if (!(await unsavedDot.isVisible())) throw new Error('Unsaved dot should appear on Save button when request is modified')
+    console.log('✅ Unsaved dot indicator visible on Save button')
+
+    // Click Save button and verify unsaved dot disappears
+    await page.click('[data-testid="request-save-btn"]')
     await page.waitForTimeout(400)
-    const curlPreview = page.locator('text=curl -X POST')
-    if (!(await curlPreview.isVisible())) throw new Error('cURL preview did not render')
-    console.log('✅ cURL generation verified')
+    const isUnsavedStillVisible = await unsavedDot.isVisible()
+    if (isUnsavedStillVisible) throw new Error('Unsaved dot should disappear after saving request')
+    console.log('✅ Unsaved dot cleared after saving request')
+
+    // Switch to cURL Tab and verify live generation
+    await page.click('button:has-text("cURL")')
+    await page.waitForTimeout(400)
+    const curlPreviewText = await page.locator('[data-testid="response-curl-preview"]').innerText()
+    if (!curlPreviewText.includes('curl -X POST')) {
+      throw new Error(`cURL preview failed to generate, got: ${curlPreviewText}`)
+    }
+    console.log('✅ Live cURL tab verified')
+
+    // Change URL and verify live cURL tab updates automatically without clicking anything
+    await page.fill('[data-testid="request-url-input"]', 'https://httpbin.org/post?live_check=1')
+    await page.waitForTimeout(400)
+    const updatedCurlText = await page.locator('[data-testid="response-curl-preview"]').innerText()
+    if (!updatedCurlText.includes('live_check=1')) {
+      throw new Error(`cURL preview did not live-update when URL changed: ${updatedCurlText}`)
+    }
+    console.log('✅ Live cURL tab auto-updated on request change')
 
     // 7. Test Send HTTP Request
     console.log('🚀 7. Testing HTTP Send request...')
@@ -187,6 +223,65 @@ async function run() {
       console.warn('⚠️ HTTP 200 not immediate (network delay), checking telemetry bar...')
     }
     console.log('✅ Request sent and response telemetry updated')
+
+    // 7.1. Test Workspace Renaming
+    console.log('🏷️ 7.1. Testing Workspace Renaming...')
+    const wsNameElem = page.locator('[data-testid="header-workspace-name"]')
+    await wsNameElem.hover()
+    await page.waitForTimeout(200)
+    const renameBtn = page.locator('[data-testid="header-rename-ws-btn"]')
+    await renameBtn.click()
+    await page.waitForTimeout(200)
+
+    const wsInput = page.locator('[data-testid="header-workspace-name-input"]')
+    await wsInput.fill('BeamREST Pro Workspace')
+    await page.click('[data-testid="header-save-ws-name-btn"]')
+    await page.waitForTimeout(400)
+
+    const newWsName = await page.locator('[data-testid="header-workspace-name"]').innerText()
+    if (newWsName !== 'BeamREST Pro Workspace') {
+      throw new Error(`Workspace name rename failed, expected 'BeamREST Pro Workspace', got '${newWsName}'`)
+    }
+    console.log('✅ Workspace renamed successfully')
+
+    // 7.2. Test Proxy Configuration
+    console.log('🌐 7.2. Testing Proxy Configuration...')
+    await page.click('[data-testid="header-proxy-btn"]')
+    await page.waitForTimeout(300)
+
+    const proxyModalTitle = page.locator('text="Proxy Configuration"')
+    if (!(await proxyModalTitle.isVisible())) throw new Error('Proxy modal failed to open')
+
+    // Enable proxy and set socks5 URL
+    await page.click('[data-testid="proxy-enable-toggle"]')
+    await page.fill('[data-testid="proxy-url-input"]', 'socks5://127.0.0.1:1080')
+    await page.click('[data-testid="proxy-save-btn"]')
+    await page.waitForTimeout(400)
+
+    const proxyStatusText = await page.locator('[data-testid="header-proxy-btn"]').innerText()
+    if (!proxyStatusText.includes('ON')) throw new Error('Header proxy status should show ON')
+    console.log('✅ Proxy enabled in Header')
+
+    // Switch to cURL tab to view updated cURL command
+    await page.click('button:has-text("cURL")')
+    await page.waitForTimeout(400)
+
+    // Verify cURL tab now includes proxy argument -x "socks5://127.0.0.1:1080"
+    const proxyCurlText = await page.locator('[data-testid="response-curl-preview"]').innerText()
+    if (!proxyCurlText.includes('-x "socks5://127.0.0.1:1080"')) {
+      throw new Error(`cURL preview does not include proxy flag: ${proxyCurlText}`)
+    }
+    console.log('✅ Live cURL preview includes -x proxy flag')
+
+    // Turn proxy off
+    await page.click('[data-testid="header-proxy-btn"]')
+    await page.waitForTimeout(300)
+    await page.click('[data-testid="proxy-enable-toggle"]')
+    await page.click('[data-testid="proxy-save-btn"]')
+    await page.waitForTimeout(400)
+    const proxyOffText = await page.locator('[data-testid="header-proxy-btn"]').innerText()
+    if (!proxyOffText.includes('OFF')) throw new Error('Header proxy status should show OFF')
+    console.log('✅ Proxy disabled cleanly')
 
     // 8. Test Variables / Environment Modal
     console.log('🛡️ 8. Testing Variables & Secrets Modal...')

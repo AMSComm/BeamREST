@@ -104,3 +104,9 @@ export interface WorkspaceFull {
   projects: ProjectData[]
   local_state?: LocalState
 }
+
+export interface ProxyConfig {
+  enabled: boolean
+  url: string
+}
+

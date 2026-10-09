@@ -5,6 +5,7 @@ import {
   Environment,
   LocalState,
   ProjectData,
+  ProxyConfig,
   WorkspaceFull,
   WorkspaceMeta,
 } from '../types'
@@ -17,12 +18,14 @@ export const isTauri = (): boolean => {
 export const tauriApi = {
   async executeHttpRequest(
     request: BeamRequest,
-    variables: Record<string, string>
+    variables: Record<string, string>,
+    proxy?: ProxyConfig
   ): Promise<BeamResponse> {
     if (isTauri()) {
       return await invoke<BeamResponse>('execute_http_request', {
         request,
         variables,
+        proxy,
       })
     }
 
@@ -168,16 +171,18 @@ export const tauriApi = {
 
   async generateCurl(
     request: BeamRequest,
-    variables: Record<string, string>
+    variables: Record<string, string>,
+    proxy?: ProxyConfig
   ): Promise<string> {
     if (isTauri()) {
       return await invoke<string>('generate_curl_cmd', {
         request,
         variables,
+        proxy,
       })
     }
-    // JS fallback
-    return `curl -X ${request.method} "${request.url}"`
+    const proxyFlag = proxy?.enabled && proxy.url ? `-x "${proxy.url.trim()}" ` : ''
+    return `curl ${proxyFlag}-X ${request.method} "${request.url}"`
   },
 
   async exportPostman(

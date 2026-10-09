@@ -6,7 +6,7 @@ use serde_json::Value;
 use tauri::command;
 
 use crate::converter::{export_project_to_postman, export_workspace_to_postman, to_curl};
-use crate::http_client::{execute_request, BeamRequest, BeamResponse};
+use crate::http_client::{execute_request, BeamRequest, BeamResponse, ProxyConfig};
 use crate::storage::{
     delete_environment, delete_project, delete_request_file, init_workspace, save_environment,
     save_local_state, save_project, save_request_file, save_workspace_meta, scan_workspace,
@@ -35,8 +35,9 @@ fn dirs_home() -> Option<PathBuf> {
 pub async fn execute_http_request(
     request: BeamRequest,
     variables: HashMap<String, String>,
+    proxy: Option<ProxyConfig>,
 ) -> Result<BeamResponse, String> {
-    execute_request(request, &variables).await
+    execute_request(request, &variables, proxy).await
 }
 
 #[command]
@@ -101,8 +102,9 @@ pub fn save_local_state_cmd(workspace_path: String, state: LocalState) -> Result
 pub fn generate_curl_cmd(
     request: BeamRequest,
     variables: HashMap<String, String>,
+    proxy: Option<ProxyConfig>,
 ) -> Result<String, String> {
-    Ok(to_curl(&request, &variables))
+    Ok(to_curl(&request, &variables, proxy.as_ref()))
 }
 
 #[command]

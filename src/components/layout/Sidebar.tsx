@@ -25,6 +25,7 @@ export const Sidebar: React.FC = () => {
     activeProjectId,
     activeRequestId,
     selectRequest,
+    isRequestDirty,
     setNewProjectModalOpen,
     openNewRequestModal,
     openConfirmDelete,
@@ -169,6 +170,13 @@ export const Sidebar: React.FC = () => {
                                 {req.method}
                               </span>
                               <span className="truncate">{req.name}</span>
+                              {isRequestDirty(req.id) && (
+                                <span
+                                  data-testid={`sidebar-unsaved-dot-${req.id}`}
+                                  className="h-1.5 w-1.5 rounded-full bg-[#38bdf8] shrink-0"
+                                  title="Unsaved changes"
+                                />
+                              )}
                             </div>
 
                             <button

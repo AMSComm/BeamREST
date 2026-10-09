@@ -381,17 +381,10 @@ pub fn save_project(workspace_dir_str: &str, project: &ProjectData) -> Result<()
     fs::write(proj_dir.join("project.json"), json_content)
         .map_err(|e| format!("Failed to write project.json: {}", e))?;
 
-    // Write secret variables to project.local.json
-    if !secret_vars.is_empty() {
-        let secret_content = serde_json::to_string_pretty(&secret_vars)
-            .map_err(|e| format!("Failed to serialize secret variables: {}", e))?;
-        fs::write(proj_dir.join("project.local.json"), secret_content)
-            .map_err(|e| format!("Failed to write project.local.json: {}", e))?;
-    } else {
-        let local_path = proj_dir.join("project.local.json");
-        if local_path.exists() {
-            let _ = fs::remove_file(local_path);
-        }
+    // Secret values are NEVER stored on disk (only keys with empty value are preserved)
+    let local_path = proj_dir.join("project.local.json");
+    if local_path.exists() {
+        let _ = fs::remove_file(local_path);
     }
 
     // Save individual request files
@@ -489,19 +482,10 @@ pub fn save_environment(workspace_dir_str: &str, env: &Environment) -> Result<()
     fs::write(env_dir.join(format!("{}.env.json", safe_name)), env_json)
         .map_err(|e| format!("Failed to write environment file: {}", e))?;
 
-    if !secret_vars.is_empty() {
-        let sec_json = serde_json::to_string_pretty(&secret_vars)
-            .map_err(|e| format!("Failed to serialize environment secrets: {}", e))?;
-        fs::write(
-            env_dir.join(format!("{}.env.local.json", safe_name)),
-            sec_json,
-        )
-        .map_err(|e| format!("Failed to write environment secrets: {}", e))?;
-    } else {
-        let loc_path = env_dir.join(format!("{}.env.local.json", safe_name));
-        if loc_path.exists() {
-            let _ = fs::remove_file(loc_path);
-        }
+    // Secret values are NEVER stored on disk
+    let loc_path = env_dir.join(format!("{}.env.local.json", safe_name));
+    if loc_path.exists() {
+        let _ = fs::remove_file(loc_path);
     }
 
     ensure_gitignore(ws_dir);
@@ -585,16 +569,10 @@ pub fn save_workspace_meta(workspace_dir_str: &str, meta: &WorkspaceMeta) -> Res
     fs::write(dot_beamrest.join("workspace.json"), meta_json)
         .map_err(|e| format!("Failed to write workspace.json: {}", e))?;
 
-    if !secret_vars.is_empty() {
-        let sec_json = serde_json::to_string_pretty(&secret_vars)
-            .map_err(|e| format!("Failed to serialize workspace secrets: {}", e))?;
-        fs::write(dot_beamrest.join("workspace.local.json"), sec_json)
-            .map_err(|e| format!("Failed to write workspace secrets: {}", e))?;
-    } else {
-        let loc_path = dot_beamrest.join("workspace.local.json");
-        if loc_path.exists() {
-            let _ = fs::remove_file(loc_path);
-        }
+    // Secret values are NEVER stored on disk
+    let loc_path = dot_beamrest.join("workspace.local.json");
+    if loc_path.exists() {
+        let _ = fs::remove_file(loc_path);
     }
 
     ensure_gitignore(ws_dir);

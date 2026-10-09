@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Clock,
   HardDrive,
@@ -11,8 +11,24 @@ import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 import { CodeEditor } from '../common/CodeEditor'
 
 export const ResponsePane: React.FC = () => {
-  const { response, responseTab, curlText, error, setResponseTab } = useWorkspaceStore()
+  const {
+    response,
+    responseTab,
+    curlText,
+    error,
+    setResponseTab,
+    activeRequest,
+    proxy,
+    updateCurlText,
+  } = useWorkspaceStore()
   const [copied, setCopied] = useState(false)
+
+  // Auto-refresh cURL command whenever responseTab is 'curl' and activeRequest or proxy changes
+  useEffect(() => {
+    if (responseTab === 'curl' && activeRequest) {
+      updateCurlText()
+    }
+  }, [responseTab, activeRequest, proxy, updateCurlText])
 
   const handleCopy = async (text: string) => {
     try {
@@ -35,24 +51,10 @@ export const ResponsePane: React.FC = () => {
     }
   }
 
-  if (error) {
-    return (
-      <div className="flex flex-1 flex-col h-full border-l border-[#1e293b] bg-[#090d16] p-4 text-xs">
-        <div className="flex items-center gap-2 rounded border border-[#ef4444]/30 bg-[#ef4444]/10 p-3 text-[#f87171]">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <div>
-            <div className="font-semibold">Request Execution Error</div>
-            <div className="mt-1 font-mono text-[11px]">{error}</div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!response && !curlText) {
+  if (!activeRequest) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center h-full border-l border-[#1e293b] bg-[#090d16] text-xs text-[#64748b]">
-        <span>Send a request to inspect response details.</span>
+        <span>Select or create a request from the sidebar.</span>
       </div>
     )
   }
@@ -71,7 +73,7 @@ export const ResponsePane: React.FC = () => {
       {/* Top Telemetry Header */}
       <div className="flex items-center justify-between border-b border-[#1e293b] bg-[#0e1322] px-3 py-2">
         <div className="flex items-center gap-3">
-          {response && (
+          {response ? (
             <>
               {/* Status Pill */}
               <div
@@ -93,10 +95,10 @@ export const ResponsePane: React.FC = () => {
                 <span>{(response.size_bytes / 1024).toFixed(2)} KB</span>
               </div>
             </>
-          )}
-
-          {!response && curlText && (
-            <span className="font-semibold text-[#38bdf8]">cURL Command Preview</span>
+          ) : (
+            <span className="text-[#64748b] font-medium">
+              {responseTab === 'curl' ? 'cURL Command Preview' : 'No response yet'}
+            </span>
           )}
         </div>
 
@@ -152,13 +154,23 @@ export const ResponsePane: React.FC = () => {
 
       {/* Response Tab Content */}
       <div className="flex-1 overflow-y-auto p-3">
+        {error && responseTab !== 'curl' && (
+          <div className="mb-3 flex items-center gap-2 rounded border border-[#ef4444]/30 bg-[#ef4444]/10 p-3 text-[#f87171]">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <div>
+              <div className="font-semibold">Request Execution Error</div>
+              <div className="mt-1 font-mono text-[11px]">{error}</div>
+            </div>
+          </div>
+        )}
+
         {/* BODY TAB */}
         {responseTab === 'body' && (
           <div className="h-full min-h-[300px]">
             {response ? (
               <CodeEditor value={getFormattedBody()} readOnly height="100%" />
             ) : (
-              <div className="text-[#64748b]">No response body yet.</div>
+              <div className="text-[#64748b]">Send a request to inspect response details.</div>
             )}
           </div>
         )}
@@ -166,22 +178,29 @@ export const ResponsePane: React.FC = () => {
         {/* HEADERS TAB */}
         {responseTab === 'headers' && (
           <div className="space-y-1">
-            {response?.headers.map((h, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded border border-[#1e293b] bg-[#0e1322] px-2.5 py-1 font-mono"
-              >
-                <span className="font-semibold text-[#38bdf8]">{h.key}</span>
-                <span className="text-[#cbd5e1] truncate max-w-md">{h.value}</span>
-              </div>
-            ))}
+            {response && response.headers.length > 0 ? (
+              response.headers.map((h, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between rounded border border-[#1e293b] bg-[#0e1322] px-2.5 py-1 font-mono"
+                >
+                  <span className="font-semibold text-[#38bdf8]">{h.key}</span>
+                  <span className="text-[#cbd5e1] truncate max-w-md">{h.value}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-[#64748b]">No response headers yet.</div>
+            )}
           </div>
         )}
 
         {/* CURL TAB */}
         {responseTab === 'curl' && (
-          <div className="rounded border border-[#1e293b] bg-[#090d16] p-3 font-mono text-xs text-[#38bdf8] whitespace-pre-wrap break-all">
-            {curlText || 'Click "cURL" button above to generate.'}
+          <div
+            data-testid="response-curl-preview"
+            className="rounded border border-[#1e293b] bg-[#090d16] p-3 font-mono text-xs text-[#38bdf8] whitespace-pre-wrap break-all select-text"
+          >
+            {curlText || 'Generating cURL command...'}
           </div>
         )}
 
