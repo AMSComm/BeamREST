@@ -1,0 +1,18 @@
+node_modules/
+target/
+dist/
+*.tsbuildinfo
+
+
+# Local state and secrets
+*.local.json
+state.local.json
+.beamrest/state.local.json
+
+# Environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db

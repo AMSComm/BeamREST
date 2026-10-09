@@ -1,0 +1,37 @@
+[package]
+name = "beamrest"
+version = "0.1.0"
+description = "BeamREST - Ultra-lightweight, high-performance REST client"
+authors = ["AM Software <contact@amsoftware.com.vn>"]
+license = "MIT"
+edition = "2021"
+default-run = "beamrest"
+
+[[bin]]
+name = "beamrest"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-process = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "multipart"] }
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.11"
+walkdir = "2.5"
+url = "2.5"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
