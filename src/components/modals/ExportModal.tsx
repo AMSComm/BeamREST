@@ -24,11 +24,12 @@ export const ExportModal: React.FC = () => {
   const [exportedJson, setExportedJson] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
 
-  if (!isExportModalOpen || !workspace) return null
-
-  const activeProject = workspace.projects.find((p) => p.id === activeProjectId) || workspace.projects[0]
+  const activeProject =
+    workspace?.projects.find((p) => p.id === activeProjectId) ||
+    workspace?.projects[0]
 
   const handleGenerate = async () => {
+    if (!workspace) return
     setIsGenerating(true)
     try {
       const payload = scope === 'project' ? activeProject : workspace
@@ -38,6 +39,16 @@ export const ExportModal: React.FC = () => {
       setIsGenerating(false)
     }
   }
+
+  React.useEffect(() => {
+    if (isExportModalOpen && workspace) {
+      handleGenerate()
+    }
+  }, [isExportModalOpen, scope, includeSecrets, activeProject])
+
+  if (!isExportModalOpen || !workspace) return null
+
+
 
   const handleCopy = async () => {
     if (!exportedJson) return
@@ -57,8 +68,9 @@ export const ExportModal: React.FC = () => {
     const a = document.createElement('a')
     const fileName =
       scope === 'project'
-        ? `${activeProject.name || 'project'}.postman_collection.json`
+        ? `${activeProject?.name || 'project'}.postman_collection.json`
         : `${workspace.meta.name || 'workspace'}.postman_collection.json`
+
     a.href = url
     a.download = fileName
     a.click()
@@ -75,6 +87,7 @@ export const ExportModal: React.FC = () => {
             <span className="font-semibold text-white">Export to Postman Collection (v2.1)</span>
           </div>
           <button
+            data-testid="export-close-btn"
             onClick={() => setExportModalOpen(false)}
             className="rounded p-1 text-[#64748b] hover:bg-[#1e293b] hover:text-white"
           >
@@ -89,6 +102,7 @@ export const ExportModal: React.FC = () => {
             <span className="text-[#94a3b8] font-medium">Export Scope:</span>
             <label className="flex items-center gap-1.5 cursor-pointer text-white">
               <input
+                data-testid="export-scope-project"
                 type="radio"
                 name="export_scope"
                 checked={scope === 'project'}
@@ -102,6 +116,7 @@ export const ExportModal: React.FC = () => {
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer text-white">
               <input
+                data-testid="export-scope-workspace"
                 type="radio"
                 name="export_scope"
                 checked={scope === 'workspace'}
@@ -119,6 +134,7 @@ export const ExportModal: React.FC = () => {
           <div className="rounded border border-[#38bdf8]/30 bg-[#0284c7]/10 p-2.5">
             <label className="flex items-center gap-2 font-medium text-white cursor-pointer">
               <input
+                data-testid="export-include-secrets"
                 type="checkbox"
                 checked={includeSecrets}
                 onChange={(e) => {
@@ -145,6 +161,7 @@ export const ExportModal: React.FC = () => {
           </div>
 
           <button
+            data-testid="export-generate-btn"
             onClick={handleGenerate}
             disabled={isGenerating}
             className="w-full rounded bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] py-1.5 font-semibold text-white hover:from-[#0369a1] hover:to-[#0284c7] transition-all"
@@ -162,6 +179,7 @@ export const ExportModal: React.FC = () => {
             )}
           </div>
           <textarea
+            data-testid="export-preview-textarea"
             readOnly
             value={exportedJson || '// Click "Generate Export JSON" above to preview'}
             className="flex-1 w-full rounded border border-[#1e293b] bg-[#090d16] p-2.5 font-mono text-[11px] text-[#38bdf8] focus:outline-none resize-none"
@@ -175,6 +193,7 @@ export const ExportModal: React.FC = () => {
           </span>
           <div className="flex gap-2">
             <button
+              data-testid="export-copy-btn"
               onClick={handleCopy}
               disabled={!exportedJson}
               className="flex items-center gap-1 rounded border border-[#1e293b] bg-[#131b2e] px-3 py-1.5 text-white hover:bg-[#1e293b] disabled:opacity-40 transition-colors"
@@ -192,6 +211,7 @@ export const ExportModal: React.FC = () => {
               )}
             </button>
             <button
+              data-testid="export-download-btn"
               onClick={handleDownload}
               disabled={!exportedJson}
               className="flex items-center gap-1 rounded bg-[#10b981] px-3 py-1.5 font-semibold text-white hover:bg-[#059669] disabled:opacity-40 transition-colors"
@@ -201,6 +221,7 @@ export const ExportModal: React.FC = () => {
             </button>
           </div>
         </div>
+
       </div>
     </div>
   )

@@ -11,8 +11,10 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "node scripts/e2e-test.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
+
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.1",
@@ -44,6 +46,8 @@
     "oxlint": "^1.81.0",
     "typescript": "~5.8.2",
     "vite": "^8.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "playwright": "^1.50.0"
   }
 }
+

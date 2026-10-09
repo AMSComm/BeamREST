@@ -100,6 +100,7 @@ export const EnvironmentModal: React.FC = () => {
             <span className="font-semibold text-white">Variable & Secret Manager</span>
           </div>
           <button
+            data-testid="env-close-btn"
             onClick={() => setEnvModalOpen(false)}
             className="rounded p-1 text-[#64748b] hover:bg-[#1e293b] hover:text-white"
           >
@@ -110,6 +111,7 @@ export const EnvironmentModal: React.FC = () => {
         {/* Scope Tabs */}
         <div className="flex border-b border-[#1e293b] bg-[#080c14] px-4">
           <button
+            data-testid="env-tab-project"
             onClick={() => setActiveTab('project')}
             className={`border-b-2 px-3 py-2 font-medium capitalize transition-colors ${
               activeTab === 'project'
@@ -120,6 +122,7 @@ export const EnvironmentModal: React.FC = () => {
             Project Variables ({activeProject?.name || 'None'})
           </button>
           <button
+            data-testid="env-tab-environment"
             onClick={() => setActiveTab('environment')}
             className={`border-b-2 px-3 py-2 font-medium capitalize transition-colors ${
               activeTab === 'environment'
@@ -141,12 +144,14 @@ export const EnvironmentModal: React.FC = () => {
                   Secrets are auto-saved to <code className="text-[#38bdf8]">project.local.json</code> and excluded from Git.
                 </span>
                 <button
+                  data-testid="env-add-project-var-btn"
                   onClick={handleAddProjectVar}
                   className="flex items-center gap-1 rounded bg-[#0284c7]/20 border border-[#0284c7]/40 px-2.5 py-1 text-[#38bdf8] hover:bg-[#0284c7]/30 transition-colors"
                 >
                   <Plus className="h-3 w-3" /> Add Variable
                 </button>
               </div>
+
 
               <div className="rounded border border-[#1e293b] bg-[#0e1322] divide-y divide-[#1e293b]">
                 {activeProject.variables.length === 0 ? (
@@ -289,6 +294,7 @@ export const EnvironmentModal: React.FC = () => {
         {/* Modal Footer */}
         <div className="flex justify-end border-t border-[#1e293b] bg-[#0e1322] px-4 py-2.5">
           <button
+            data-testid="env-done-btn"
             onClick={() => setEnvModalOpen(false)}
             className="rounded bg-[#0284c7] px-4 py-1.5 font-semibold text-white hover:bg-[#0369a1] transition-colors"
           >
@@ -299,3 +305,4 @@ export const EnvironmentModal: React.FC = () => {
     </div>
   )
 }
+

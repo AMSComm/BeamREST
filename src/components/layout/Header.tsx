@@ -6,8 +6,11 @@ import {
   Settings,
   Layers,
   Zap,
+  Keyboard,
 } from 'lucide-react'
+import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
+import { isTauri } from '../../services/tauriApi'
 
 export const Header: React.FC = () => {
   const {
@@ -17,9 +20,26 @@ export const Header: React.FC = () => {
     setActiveEnvironment,
     setEnvModalOpen,
     setExportModalOpen,
+    setShortcutsModalOpen,
   } = useWorkspaceStore()
 
   const handleOpenFolder = async () => {
+    try {
+      if (isTauri()) {
+        const selected = await openDialog({
+          directory: true,
+          multiple: false,
+          title: 'Select Workspace Directory',
+        })
+        if (selected && typeof selected === 'string') {
+          await loadWorkspace(selected)
+          return
+        }
+      }
+    } catch {
+      // Fallback if plugin dialog not supported or cancelled
+    }
+
     const input = prompt(
       'Enter directory path to open as workspace:',
       workspace?.path || ''
@@ -35,7 +55,7 @@ export const Header: React.FC = () => {
 
     const path = prompt(
       'Enter directory path for new workspace:',
-      `/Users/huy/dev/beamrest-workspace`
+      `/tmp/beamrest-${Date.now()}`
     )
     if (path && path.trim()) {
       await initWorkspace(path.trim(), name.trim())
@@ -72,6 +92,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center gap-1.5 rounded border border-[#1e293b] bg-[#0f172a] px-2 py-1">
             <span className="text-[#64748b]">Env:</span>
             <select
+              data-testid="header-env-select"
               className="bg-transparent text-[#38bdf8] outline-none cursor-pointer text-xs"
               value={workspace.meta.active_environment_id || ''}
               onChange={(e) => setActiveEnvironment(e.target.value || null)}
@@ -91,9 +112,10 @@ export const Header: React.FC = () => {
         {/* Variables Manager Button */}
         {workspace && (
           <button
+            data-testid="header-variables-btn"
             onClick={() => setEnvModalOpen(true)}
             className="flex items-center gap-1.5 rounded border border-[#1e293b] bg-[#131b2e] px-2.5 py-1 text-[#cbd5e1] hover:border-[#38bdf8]/50 hover:bg-[#1e293b] hover:text-white transition-colors"
-            title="Manage Workspace & Environment Variables"
+            title="Manage Workspace & Environment Variables (Cmd+E)"
           >
             <Settings className="h-3.5 w-3.5 text-[#38bdf8]" />
             <span>Variables</span>
@@ -103,26 +125,39 @@ export const Header: React.FC = () => {
         {/* Export Postman / Project Button */}
         {workspace && (
           <button
+            data-testid="header-export-btn"
             onClick={() => setExportModalOpen(true)}
             className="flex items-center gap-1.5 rounded border border-[#1e293b] bg-[#131b2e] px-2.5 py-1 text-[#cbd5e1] hover:border-[#38bdf8]/50 hover:bg-[#1e293b] hover:text-white transition-colors"
-            title="Export to Postman Collection or Project"
+            title="Export to Postman Collection or Project (Cmd+Shift+E)"
           >
             <Download className="h-3.5 w-3.5 text-[#10b981]" />
             <span>Export</span>
           </button>
         )}
 
+        {/* Shortcuts Cheat Sheet Button */}
+        <button
+          data-testid="header-shortcuts-btn"
+          onClick={() => setShortcutsModalOpen(true)}
+          className="flex items-center gap-1 rounded border border-[#1e293b] bg-[#131b2e] px-2 py-1 text-[#94a3b8] hover:border-[#38bdf8]/50 hover:text-white transition-colors"
+          title="Keyboard Shortcuts Cheat Sheet (?)"
+        >
+          <Keyboard className="h-3.5 w-3.5 text-[#38bdf8]" />
+        </button>
+
         {/* Workspace Load & New Buttons */}
         <button
+          data-testid="header-open-btn"
           onClick={handleOpenFolder}
           className="flex items-center gap-1.5 rounded border border-[#1e293b] bg-[#131b2e] px-2 py-1 text-[#94a3b8] hover:border-[#334155] hover:text-white transition-colors"
-          title="Open Existing Workspace Directory"
+          title="Open Existing Workspace Directory (Cmd+O)"
         >
           <FolderOpen className="h-3.5 w-3.5" />
           <span>Open</span>
         </button>
 
         <button
+          data-testid="header-new-ws-btn"
           onClick={handleNewWorkspace}
           className="flex items-center gap-1.5 rounded border border-[#0284c7]/40 bg-[#0284c7]/20 px-2 py-1 text-[#38bdf8] hover:bg-[#0284c7]/30 transition-colors"
           title="Create New Workspace"

@@ -25,9 +25,9 @@ export const Sidebar: React.FC = () => {
     activeProjectId,
     activeRequestId,
     selectRequest,
-    createProject,
-    createRequest,
-    deleteRequest,
+    setNewProjectModalOpen,
+    openNewRequestModal,
+    openConfirmDelete,
   } = useWorkspaceStore()
 
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({})
@@ -36,31 +36,19 @@ export const Sidebar: React.FC = () => {
     setCollapsedProjects((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const handleCreateProject = async () => {
-    const name = prompt('Enter new project / collection name:')
-    if (name && name.trim()) {
-      await createProject(name.trim())
-    }
-  }
-
-  const handleCreateRequest = async (projectId: string, e: React.MouseEvent) => {
+  const handleCreateRequest = (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const name = prompt('Enter request name:', 'New Request')
-    if (name && name.trim()) {
-      await createRequest(projectId, name.trim(), 'GET')
-    }
+    openNewRequestModal(projectId)
   }
 
-  const handleDeleteRequest = async (
+  const handleDeleteRequest = (
     projectId: string,
     requestId: string,
     name: string,
     e: React.MouseEvent
   ) => {
     e.stopPropagation()
-    if (confirm(`Delete request "${name}"?`)) {
-      await deleteRequest(projectId, requestId)
-    }
+    openConfirmDelete({ projectId, requestId, name })
   }
 
   return (
@@ -71,9 +59,10 @@ export const Sidebar: React.FC = () => {
           Projects & Requests
         </span>
         <button
-          onClick={handleCreateProject}
+          data-testid="sidebar-new-project-btn"
+          onClick={() => setNewProjectModalOpen(true)}
           className="flex items-center gap-1 rounded bg-[#131b2e] px-2 py-0.5 text-[#38bdf8] hover:bg-[#1e293b] transition-colors"
-          title="Create New Project"
+          title="Create New Project (Cmd+Shift+N)"
         >
           <FolderPlus className="h-3 w-3" />
           <span>New Project</span>
@@ -119,6 +108,7 @@ export const Sidebar: React.FC = () => {
 
                   {/* Add Request to Project Button */}
                   <button
+                    data-testid={`sidebar-add-request-btn-${project.id}`}
                     onClick={(e) => handleCreateRequest(project.id, e)}
                     className="opacity-0 group-hover:opacity-100 rounded p-1 text-[#94a3b8] hover:bg-[#1e293b] hover:text-[#38bdf8] transition-all"
                     title="Add Request to this project"
@@ -145,6 +135,7 @@ export const Sidebar: React.FC = () => {
                         return (
                           <div
                             key={req.id}
+                            data-testid={`sidebar-request-${req.id}`}
                             onClick={() => selectRequest(project.id, req.id)}
                             className={`group flex items-center justify-between rounded px-2 py-1.5 cursor-pointer transition-colors ${
                               isReqActive
@@ -162,6 +153,7 @@ export const Sidebar: React.FC = () => {
                             </div>
 
                             <button
+                              data-testid={`sidebar-delete-request-btn-${req.id}`}
                               onClick={(e) =>
                                 handleDeleteRequest(project.id, req.id, req.name, e)
                               }

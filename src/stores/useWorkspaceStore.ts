@@ -25,6 +25,11 @@ interface WorkspaceState {
   // Modals
   isEnvModalOpen: boolean
   isExportModalOpen: boolean
+  isNewProjectModalOpen: boolean
+  isNewRequestModalOpen: boolean
+  targetProjectIdForNewRequest: string | null
+  isShortcutsModalOpen: boolean
+  confirmDeleteTarget: { projectId: string; requestId: string; name: string } | null
 
   // Actions
   setWorkspace: (ws: WorkspaceFull) => void
@@ -45,6 +50,12 @@ interface WorkspaceState {
   setResponseTab: (tab: WorkspaceState['responseTab']) => void
   setEnvModalOpen: (open: boolean) => void
   setExportModalOpen: (open: boolean) => void
+  setNewProjectModalOpen: (open: boolean) => void
+  openNewRequestModal: (projectId?: string) => void
+  setNewRequestModalOpen: (open: boolean) => void
+  setShortcutsModalOpen: (open: boolean) => void
+  openConfirmDelete: (target: { projectId: string; requestId: string; name: string }) => void
+  closeConfirmDelete: () => void
   copyCurl: () => Promise<string>
 }
 
@@ -62,6 +73,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   responseTab: 'body',
   isEnvModalOpen: false,
   isExportModalOpen: false,
+  isNewProjectModalOpen: false,
+  isNewRequestModalOpen: false,
+  targetProjectIdForNewRequest: null,
+  isShortcutsModalOpen: false,
+  confirmDeleteTarget: null,
+
 
   setWorkspace: (ws) => set({ workspace: ws }),
 
@@ -391,4 +408,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setResponseTab: (tab) => set({ responseTab: tab }),
   setEnvModalOpen: (open) => set({ isEnvModalOpen: open }),
   setExportModalOpen: (open) => set({ isExportModalOpen: open }),
+  setNewProjectModalOpen: (open) => set({ isNewProjectModalOpen: open }),
+  openNewRequestModal: (projectId) => {
+    const { activeProjectId, workspace } = get()
+    const target = projectId || activeProjectId || workspace?.projects[0]?.id || null
+    set({
+      targetProjectIdForNewRequest: target,
+      isNewRequestModalOpen: true,
+    })
+  },
+  setNewRequestModalOpen: (open) => set({ isNewRequestModalOpen: open }),
+  setShortcutsModalOpen: (open) => set({ isShortcutsModalOpen: open }),
+  openConfirmDelete: (target) => set({ confirmDeleteTarget: target }),
+  closeConfirmDelete: () => set({ confirmDeleteTarget: null }),
 }))
+

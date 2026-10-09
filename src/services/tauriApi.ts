@@ -166,13 +166,27 @@ export const tauriApi = {
     }
     return JSON.stringify(
       {
-        info: { name: payload.name || 'Exported' },
-        item: [],
+        info: {
+          name: payload?.name || payload?.meta?.name || 'Exported Collection',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+        },
+        item: (payload?.requests || []).map((r: any) => ({
+          name: r.name,
+          request: {
+            method: r.method,
+            url: { raw: r.url },
+          },
+        })),
+        variable: (payload?.variables || []).map((v: any) => ({
+          key: v.key,
+          value: v.is_secret && !includeSecrets ? '' : v.value,
+        })),
       },
       null,
       2
     )
   },
+
 
   async getLastWorkspacePath(): Promise<string | null> {
     if (isTauri()) {
