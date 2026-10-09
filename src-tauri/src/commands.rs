@@ -8,8 +8,9 @@ use tauri::command;
 use crate::converter::{export_project_to_postman, export_workspace_to_postman, to_curl};
 use crate::http_client::{execute_request, BeamRequest, BeamResponse};
 use crate::storage::{
-    delete_request_file, init_workspace, save_environment, save_local_state, save_project,
-    save_request_file, scan_workspace, Environment, LocalState, ProjectData, WorkspaceFull,
+    delete_environment, delete_project, delete_request_file, init_workspace, save_environment,
+    save_local_state, save_project, save_request_file, save_workspace_meta, scan_workspace,
+    Environment, LocalState, ProjectData, WorkspaceFull, WorkspaceMeta,
 };
 
 fn get_app_config_dir() -> Option<PathBuf> {
@@ -72,8 +73,23 @@ pub fn delete_request_cmd(
 }
 
 #[command]
+pub fn delete_project_cmd(workspace_path: String, project_name: String) -> Result<(), String> {
+    delete_project(&workspace_path, &project_name)
+}
+
+#[command]
 pub fn save_environment_cmd(workspace_path: String, env: Environment) -> Result<(), String> {
     save_environment(&workspace_path, &env)
+}
+
+#[command]
+pub fn delete_environment_cmd(workspace_path: String, env_name: String) -> Result<(), String> {
+    delete_environment(&workspace_path, &env_name)
+}
+
+#[command]
+pub fn save_workspace_meta_cmd(workspace_path: String, meta: WorkspaceMeta) -> Result<(), String> {
+    save_workspace_meta(&workspace_path, &meta)
 }
 
 #[command]

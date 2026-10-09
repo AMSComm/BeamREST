@@ -9,6 +9,7 @@ import { NewProjectModal } from './components/modals/NewProjectModal'
 import { NewRequestModal } from './components/modals/NewRequestModal'
 import { ConfirmDeleteModal } from './components/modals/ConfirmDeleteModal'
 import { ShortcutsModal } from './components/modals/ShortcutsModal'
+import { NewWorkspaceModal } from './components/modals/NewWorkspaceModal'
 import { useWorkspaceStore } from './stores/useWorkspaceStore'
 import { tauriApi } from './services/tauriApi'
 
@@ -151,6 +152,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Modals */}
+      <NewWorkspaceModal />
       <EnvironmentModal />
       <ExportModal />
       <NewProjectModal />

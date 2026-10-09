@@ -48,7 +48,16 @@ export const Sidebar: React.FC = () => {
     e: React.MouseEvent
   ) => {
     e.stopPropagation()
-    openConfirmDelete({ projectId, requestId, name })
+    openConfirmDelete({ type: 'request', projectId, requestId, name })
+  }
+
+  const handleDeleteProject = (
+    projectId: string,
+    name: string,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation()
+    openConfirmDelete({ type: 'project', projectId, name })
   }
 
   return (
@@ -106,15 +115,25 @@ export const Sidebar: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Add Request to Project Button */}
-                  <button
-                    data-testid={`sidebar-add-request-btn-${project.id}`}
-                    onClick={(e) => handleCreateRequest(project.id, e)}
-                    className="opacity-0 group-hover:opacity-100 rounded p-1 text-[#94a3b8] hover:bg-[#1e293b] hover:text-[#38bdf8] transition-all"
-                    title="Add Request to this project"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                  {/* Actions for Project */}
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      data-testid={`sidebar-add-request-btn-${project.id}`}
+                      onClick={(e) => handleCreateRequest(project.id, e)}
+                      className="rounded p-1 text-[#94a3b8] hover:bg-[#1e293b] hover:text-[#38bdf8] transition-all"
+                      title="Add Request to this project"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                    <button
+                      data-testid={`sidebar-delete-project-btn-${project.id}`}
+                      onClick={(e) => handleDeleteProject(project.id, project.name, e)}
+                      className="rounded p-1 text-[#64748b] hover:bg-[#1e293b] hover:text-[#ef4444] transition-all"
+                      title="Delete Project"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Requests List */}

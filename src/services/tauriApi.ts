@@ -6,6 +6,7 @@ import {
   LocalState,
   ProjectData,
   WorkspaceFull,
+  WorkspaceMeta,
 } from '../types'
 
 // Check if running inside native Tauri runtime
@@ -92,6 +93,15 @@ export const tauriApi = {
     }
   },
 
+  async deleteProject(workspacePath: string, projectName: string): Promise<void> {
+    if (isTauri()) {
+      return await invoke<void>('delete_project_cmd', {
+        workspacePath,
+        projectName,
+      })
+    }
+  },
+
   async saveRequest(
     workspacePath: string,
     projectName: string,
@@ -125,6 +135,24 @@ export const tauriApi = {
       return await invoke<void>('save_environment_cmd', {
         workspacePath,
         env,
+      })
+    }
+  },
+
+  async deleteEnvironment(workspacePath: string, envName: string): Promise<void> {
+    if (isTauri()) {
+      return await invoke<void>('delete_environment_cmd', {
+        workspacePath,
+        envName,
+      })
+    }
+  },
+
+  async saveWorkspaceMeta(workspacePath: string, meta: WorkspaceMeta): Promise<void> {
+    if (isTauri()) {
+      return await invoke<void>('save_workspace_meta_cmd', {
+        workspacePath,
+        meta,
       })
     }
   },

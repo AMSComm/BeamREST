@@ -522,3 +522,82 @@ pub fn save_local_state(workspace_dir_str: &str, state: &LocalState) -> Result<(
 
     Ok(())
 }
+
+/// Deletes a project folder and all its requests from the workspace.
+pub fn delete_project(workspace_dir_str: &str, project_name: &str) -> Result<(), String> {
+    let ws_dir = Path::new(workspace_dir_str);
+    let proj_dir = ws_dir.join(project_name);
+    if proj_dir.exists() && proj_dir.is_dir() {
+        fs::remove_dir_all(&proj_dir)
+            .map_err(|e| format!("Failed to delete project folder: {}", e))?;
+    }
+    Ok(())
+}
+
+/// Deletes an environment file and its local secrets file from the workspace.
+pub fn delete_environment(workspace_dir_str: &str, env_name: &str) -> Result<(), String> {
+    let ws_dir = Path::new(workspace_dir_str);
+    let env_dir = ws_dir.join("environments");
+    let safe_name: String = env_name
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+
+    let pub_file = env_dir.join(format!("{}.env.json", safe_name));
+    if pub_file.exists() {
+        let _ = fs::remove_file(pub_file);
+    }
+    let local_file = env_dir.join(format!("{}.env.local.json", safe_name));
+    if local_file.exists() {
+        let _ = fs::remove_file(local_file);
+    }
+    Ok(())
+}
+
+/// Saves workspace metadata (.beamrest/workspace.json) with secret variable isolation.
+pub fn save_workspace_meta(workspace_dir_str: &str, meta: &WorkspaceMeta) -> Result<(), String> {
+    let ws_dir = Path::new(workspace_dir_str);
+    let dot_beamrest = ws_dir.join(".beamrest");
+    fs::create_dir_all(&dot_beamrest).map_err(|e| format!("Failed to create .beamrest: {}", e))?;
+
+    let mut public_vars = Vec::new();
+    let mut secret_vars = Vec::new();
+
+    for v in &meta.variables {
+        if v.is_secret {
+            secret_vars.push(v.clone());
+            public_vars.push(Variable {
+                key: v.key.clone(),
+                value: String::new(),
+                is_secret: true,
+                scope: v.scope.clone(),
+            });
+        } else {
+            public_vars.push(v.clone());
+        }
+    }
+
+    let mut pub_meta = meta.clone();
+    pub_meta.variables = public_vars;
+
+    let meta_json = serde_json::to_string_pretty(&pub_meta)
+        .map_err(|e| format!("Failed to serialize workspace.json: {}", e))?;
+    fs::write(dot_beamrest.join("workspace.json"), meta_json)
+        .map_err(|e| format!("Failed to write workspace.json: {}", e))?;
+
+    if !secret_vars.is_empty() {
+        let sec_json = serde_json::to_string_pretty(&secret_vars)
+            .map_err(|e| format!("Failed to serialize workspace secrets: {}", e))?;
+        fs::write(dot_beamrest.join("workspace.local.json"), sec_json)
+            .map_err(|e| format!("Failed to write workspace secrets: {}", e))?;
+    } else {
+        let loc_path = dot_beamrest.join("workspace.local.json");
+        if loc_path.exists() {
+            let _ = fs::remove_file(loc_path);
+        }
+    }
+
+    ensure_gitignore(ws_dir);
+    Ok(())
+}
+

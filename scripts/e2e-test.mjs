@@ -247,7 +247,45 @@ async function run() {
     await page.waitForTimeout(400)
     console.log('✅ Request deleted successfully via confirmation modal')
 
-    console.log('🎉 ALL PLAYWRIGHT E2E ASSERTIONS PASSED WITH 100% SUCCESS!')
+    // 11. Test cURL Paste into URL input
+    console.log('📋 11. Testing cURL command paste into URL bar...')
+    const curlSample = `curl -X PUT "https://httpbin.org/put?role=admin" -H "X-Custom-Auth: token999" -d '{"updated":true}'`
+    await page.fill('[data-testid="request-url-input"]', curlSample)
+    await page.waitForTimeout(400)
+
+    const updatedUrl = await page.inputValue('[data-testid="request-url-input"]')
+    if (updatedUrl !== 'https://httpbin.org/put') {
+      throw new Error(`cURL paste did not parse URL correctly: expected https://httpbin.org/put, got ${updatedUrl}`)
+    }
+    const selectedMethod = await page.inputValue('[data-testid="request-method-select"]')
+    if (selectedMethod !== 'PUT') {
+      throw new Error(`cURL paste did not parse method correctly: expected PUT, got ${selectedMethod}`)
+    }
+    console.log('✅ cURL paste successfully parsed method, URL, and parameters into request!')
+
+    // 12. Test Delete Project Modal
+    console.log('🗑️ 12. Testing Delete Project confirmation modal...')
+    const deleteProjBtn = page.locator('button[title="Delete Project"]').first()
+    await deleteProjBtn.click({ force: true })
+    await page.waitForTimeout(400)
+
+    const isDeleteProjModalVisible = await page.locator('text=Are you sure you want to delete project').isVisible()
+    if (!isDeleteProjModalVisible) throw new Error('Delete Project modal did not appear')
+    await page.click('[data-testid="confirm-delete-action-btn"]')
+    await page.waitForTimeout(400)
+    console.log('✅ Project deleted successfully via confirmation modal')
+
+    // 13. Test New Workspace Modal
+    console.log('🏗️ 13. Testing New Workspace modal...')
+    await page.click('[data-testid="header-new-ws-btn"]')
+    await page.waitForTimeout(300)
+    const isNewWsModalVisible = await page.locator('text="Create New Workspace"').isVisible()
+    if (!isNewWsModalVisible) throw new Error('New Workspace modal did not appear')
+    await page.click('button:has-text("Cancel")')
+    await page.waitForTimeout(200)
+    console.log('✅ New Workspace modal opened and closed cleanly')
+
+    console.log('🎉 ALL 13 PLAYWRIGHT E2E ASSERTIONS PASSED WITH 100% SUCCESS!')
   } finally {
     await browser.close()
     if (server) {

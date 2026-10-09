@@ -3,18 +3,58 @@ import { AlertTriangle, X } from 'lucide-react'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 
 export const ConfirmDeleteModal: React.FC = () => {
-  const { confirmDeleteTarget, closeConfirmDelete, deleteRequest } =
-    useWorkspaceStore()
+  const {
+    confirmDeleteTarget,
+    closeConfirmDelete,
+    deleteRequest,
+    deleteProject,
+    deleteEnvironment,
+  } = useWorkspaceStore()
 
   if (!confirmDeleteTarget) return null
 
   const handleConfirm = async () => {
-    await deleteRequest(
-      confirmDeleteTarget.projectId,
-      confirmDeleteTarget.requestId
-    )
+    if (confirmDeleteTarget.type === 'request') {
+      if (confirmDeleteTarget.projectId && confirmDeleteTarget.requestId) {
+        await deleteRequest(
+          confirmDeleteTarget.projectId,
+          confirmDeleteTarget.requestId
+        )
+      }
+    } else if (confirmDeleteTarget.type === 'project') {
+      if (confirmDeleteTarget.projectId) {
+        await deleteProject(confirmDeleteTarget.projectId)
+      }
+    } else if (confirmDeleteTarget.type === 'environment') {
+      if (confirmDeleteTarget.envId) {
+        await deleteEnvironment(confirmDeleteTarget.envId)
+      }
+    }
     closeConfirmDelete()
   }
+
+  const getTargetDescription = () => {
+    switch (confirmDeleteTarget.type) {
+      case 'project':
+        return {
+          title: `Are you sure you want to delete project "${confirmDeleteTarget.name}"?`,
+          warning: 'This will permanently remove the project folder and all its .request.json files from disk.',
+        }
+      case 'environment':
+        return {
+          title: `Are you sure you want to delete environment "${confirmDeleteTarget.name}"?`,
+          warning: 'This will remove the .env.json and .env.local.json files from disk.',
+        }
+      case 'request':
+      default:
+        return {
+          title: `Are you sure you want to delete request "${confirmDeleteTarget.name}"?`,
+          warning: 'This will permanently remove the .request.json file from disk.',
+        }
+    }
+  }
+
+  const { title, warning } = getTargetDescription()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-xs select-none">
@@ -33,13 +73,8 @@ export const ConfirmDeleteModal: React.FC = () => {
         </div>
 
         <div className="p-4 space-y-3">
-          <p className="text-[#cbd5e1]">
-            Are you sure you want to delete request{' '}
-            <strong className="text-white">"{confirmDeleteTarget.name}"</strong>?
-          </p>
-          <p className="text-[11px] text-[#64748b]">
-            This will permanently remove the <code className="text-[#38bdf8]">.request.json</code> file from disk.
-          </p>
+          <p className="text-[#cbd5e1]">{title}</p>
+          <p className="text-[11px] text-[#64748b]">{warning}</p>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-[#1e293b]">
             <button
@@ -49,6 +84,7 @@ export const ConfirmDeleteModal: React.FC = () => {
               Cancel
             </button>
             <button
+              data-testid="confirm-delete-action-btn"
               onClick={handleConfirm}
               className="rounded bg-[#ef4444] px-4 py-1.5 font-semibold text-white hover:bg-[#dc2626]"
             >

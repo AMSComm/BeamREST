@@ -23,13 +23,20 @@ interface WorkspaceState {
   responseTab: 'body' | 'headers' | 'curl' | 'extracted'
 
   // Modals
+  isWorkspaceModalOpen: boolean
   isEnvModalOpen: boolean
   isExportModalOpen: boolean
   isNewProjectModalOpen: boolean
   isNewRequestModalOpen: boolean
   targetProjectIdForNewRequest: string | null
   isShortcutsModalOpen: boolean
-  confirmDeleteTarget: { projectId: string; requestId: string; name: string } | null
+  confirmDeleteTarget: {
+    type: 'request' | 'project' | 'environment'
+    projectId?: string
+    requestId?: string
+    envId?: string
+    name: string
+  } | null
 
   // Actions
   setWorkspace: (ws: WorkspaceFull) => void
@@ -40,21 +47,31 @@ interface WorkspaceState {
   saveActiveRequest: () => Promise<void>
   sendRequest: () => Promise<void>
   createProject: (name: string) => Promise<void>
+  deleteProject: (projectId: string) => Promise<void>
   createRequest: (projectId: string, name: string, method?: string) => Promise<void>
   deleteRequest: (projectId: string, requestId: string) => Promise<void>
   setActiveEnvironment: (envId: string | null) => void
   saveEnvironment: (env: Environment) => Promise<void>
+  deleteEnvironment: (envId: string) => Promise<void>
   saveProject: (project: ProjectData) => Promise<void>
+  saveWorkspaceMeta: (meta: WorkspaceFull['meta']) => Promise<void>
   getResolvedVariables: () => Record<string, string>
   setActiveTab: (tab: WorkspaceState['activeTab']) => void
   setResponseTab: (tab: WorkspaceState['responseTab']) => void
+  setWorkspaceModalOpen: (open: boolean) => void
   setEnvModalOpen: (open: boolean) => void
   setExportModalOpen: (open: boolean) => void
   setNewProjectModalOpen: (open: boolean) => void
   openNewRequestModal: (projectId?: string) => void
   setNewRequestModalOpen: (open: boolean) => void
   setShortcutsModalOpen: (open: boolean) => void
-  openConfirmDelete: (target: { projectId: string; requestId: string; name: string }) => void
+  openConfirmDelete: (target: {
+    type: 'request' | 'project' | 'environment'
+    projectId?: string
+    requestId?: string
+    envId?: string
+    name: string
+  }) => void
   closeConfirmDelete: () => void
   copyCurl: () => Promise<string>
 }
@@ -71,6 +88,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   activeTab: 'params',
   responseTab: 'body',
+  isWorkspaceModalOpen: false,
   isEnvModalOpen: false,
   isExportModalOpen: false,
   isNewProjectModalOpen: false,
@@ -211,12 +229,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const { activeRequest, getResolvedVariables, workspace, activeProjectId } = get()
     if (!activeRequest || !workspace) return
 
-    set({ isSending: true, error: null })
+    set({ isSending: true, error: null, responseTab: 'body' })
     const vars = getResolvedVariables()
 
     try {
       const resp = await tauriApi.executeHttpRequest(activeRequest, vars)
-      set({ response: resp, isSending: false })
+      set({ response: resp, isSending: false, responseTab: 'body' })
 
       // If extractors captured any variables, automatically update them into the project
       if (resp.extracted_variables && resp.extracted_variables.length > 0 && activeProjectId) {
@@ -245,8 +263,40 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       set({
         isSending: false,
         error: String(err?.message || err),
+        responseTab: 'body',
       })
     }
+  },
+
+  deleteProject: async (projectId: string) => {
+    const { workspace, activeProjectId } = get()
+    if (!workspace) return
+
+    const proj = workspace.projects.find((p) => p.id === projectId)
+    if (proj) {
+      await tauriApi.deleteProject(workspace.path, proj.name)
+    }
+
+    const updatedProjects = workspace.projects.filter((p) => p.id !== projectId)
+    const nextProj = updatedProjects.length > 0 ? updatedProjects[0] : null
+
+    set({
+      workspace: { ...workspace, projects: updatedProjects },
+      activeProjectId: activeProjectId === projectId ? (nextProj ? nextProj.id : null) : activeProjectId,
+      activeRequestId:
+        activeProjectId === projectId
+          ? nextProj && nextProj.requests.length > 0
+            ? nextProj.requests[0].id
+            : null
+          : get().activeRequestId,
+      activeRequest:
+        activeProjectId === projectId
+          ? nextProj && nextProj.requests.length > 0
+            ? { ...nextProj.requests[0] }
+            : null
+          : get().activeRequest,
+      response: null,
+    })
   },
 
   createProject: async (name: string) => {
@@ -375,6 +425,30 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     })
   },
 
+  deleteEnvironment: async (envId: string) => {
+    const { workspace } = get()
+    if (!workspace) return
+
+    const env = workspace.environments.find((e) => e.id === envId)
+    if (env) {
+      await tauriApi.deleteEnvironment(workspace.path, env.name)
+    }
+
+    const updatedEnvs = workspace.environments.filter((e) => e.id !== envId)
+    const activeEnvId =
+      workspace.meta.active_environment_id === envId
+        ? undefined
+        : workspace.meta.active_environment_id
+
+    set({
+      workspace: {
+        ...workspace,
+        environments: updatedEnvs,
+        meta: { ...workspace.meta, active_environment_id: activeEnvId },
+      },
+    })
+  },
+
   saveProject: async (project: ProjectData) => {
     const { workspace } = get()
     if (!workspace) return
@@ -386,6 +460,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     )
     set({
       workspace: { ...workspace, projects: updatedProjects },
+    })
+  },
+
+  saveWorkspaceMeta: async (meta: WorkspaceFull['meta']) => {
+    const { workspace } = get()
+    if (!workspace) return
+
+    await tauriApi.saveWorkspaceMeta(workspace.path, meta)
+    set({
+      workspace: { ...workspace, meta },
     })
   },
 
@@ -406,6 +490,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setResponseTab: (tab) => set({ responseTab: tab }),
+  setWorkspaceModalOpen: (open) => set({ isWorkspaceModalOpen: open }),
   setEnvModalOpen: (open) => set({ isEnvModalOpen: open }),
   setExportModalOpen: (open) => set({ isExportModalOpen: open }),
   setNewProjectModalOpen: (open) => set({ isNewProjectModalOpen: open }),

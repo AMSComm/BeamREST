@@ -16,8 +16,8 @@ export const Header: React.FC = () => {
   const {
     workspace,
     loadWorkspace,
-    initWorkspace,
     setActiveEnvironment,
+    setWorkspaceModalOpen,
     setEnvModalOpen,
     setExportModalOpen,
     setShortcutsModalOpen,
@@ -49,17 +49,8 @@ export const Header: React.FC = () => {
     }
   }
 
-  const handleNewWorkspace = async () => {
-    const name = prompt('Enter workspace name:', 'My API Workspace')
-    if (!name || !name.trim()) return
-
-    const path = prompt(
-      'Enter directory path for new workspace:',
-      `/tmp/beamrest-${Date.now()}`
-    )
-    if (path && path.trim()) {
-      await initWorkspace(path.trim(), name.trim())
-    }
+  const handleNewWorkspace = () => {
+    setWorkspaceModalOpen(true)
   }
 
   return (

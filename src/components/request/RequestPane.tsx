@@ -10,6 +10,7 @@ import {
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 import { CodeEditor } from '../common/CodeEditor'
 import { ExtractorRule, KeyValuePair } from '../../types'
+import { parseCurlCommand } from '../../utils/curlParser'
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']
 
@@ -102,6 +103,36 @@ export const RequestPane: React.FC = () => {
     updateActiveRequest({ extractors: updated })
   }
 
+  const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text')
+    if (text && text.trim().toLowerCase().startsWith('curl')) {
+      const parsed = parseCurlCommand(text)
+      if (parsed) {
+        e.preventDefault()
+        updateActiveRequest(parsed)
+      }
+    }
+  }
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    if (val.trim().toLowerCase().startsWith('curl ')) {
+      const parsed = parseCurlCommand(val)
+      if (parsed) {
+        updateActiveRequest(parsed)
+        return
+      }
+    }
+    updateActiveRequest({ url: val })
+  }
+
+  const handleUrlKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      sendRequest()
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col h-full bg-[#0b0f19] text-xs">
       {/* Top URL and Action Bar */}
@@ -126,8 +157,10 @@ export const RequestPane: React.FC = () => {
             data-testid="request-url-input"
             type="text"
             value={activeRequest.url}
-            onChange={(e) => updateActiveRequest({ url: e.target.value })}
-            placeholder="Enter URL or use {{variables}} (e.g. {{baseUrl}}/api/v1/users)"
+            onChange={handleUrlChange}
+            onPaste={handleUrlPaste}
+            onKeyDown={handleUrlKeyDown}
+            placeholder="Enter URL, paste cURL command, or use {{variables}}"
             className="w-full rounded border border-[#1e293b] bg-[#131b2e] px-3 py-1.5 font-mono text-xs text-[#f8fafc] placeholder-[#64748b] focus:border-[#38bdf8] focus:outline-none"
           />
         </div>
