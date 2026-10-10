@@ -99,8 +99,8 @@ export const Header: React.FC = () => {
       {/* Brand & Workspace Title */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 font-semibold tracking-wide text-white">
-          <div className="relative flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-tr from-[#f97316] to-[#fbbf24] shadow-sm shadow-[#f97316]/30">
-            <Zap className="h-3.5 w-3.5 text-white fill-white" />
+          <div className="relative flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-tr from-[#0ea5e9] to-[#06b6d4] shadow-sm shadow-[#06b6d4]/30">
+            <Zap className="h-3.5 w-3.5 text-white" />
           </div>
           <span className="text-sm font-bold tracking-tight text-white">
             Beam<span className="text-[#38bdf8]">REST</span>
