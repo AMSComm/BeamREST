@@ -3,7 +3,7 @@
   "productName": "BeamREST",
   "version": "0.1.0",
   "mainBinaryName": "beamrest",
-  "identifier": "com.beamrest.app",
+  "identifier": "com.beamrest.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1421",
@@ -31,7 +31,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "publisher": "AM Software",
     "copyright": "Copyright © 2026 AM Software",
     "icon": [

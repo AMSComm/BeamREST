@@ -19,13 +19,10 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target universal-apple-darwin'
-            targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
             args: ''
-            targets: ''
           - platform: 'windows-latest'
             args: ''
-            targets: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -46,7 +43,7 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.targets }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install system dependencies (Ubuntu)
         if: matrix.platform == 'ubuntu-22.04'
@@ -63,7 +60,7 @@ jobs:
           pnpm test
           pnpm run build
 
-      - name: Build Desktop App & Upload Release Assets (Draft)
+      - name: Build Desktop App & Publish Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,7 +68,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: BeamREST ${{ github.ref_name }}
+          releaseName: 'BeamREST ${{ github.ref_name }}'
           releaseBody: |
             ## BeamREST ${{ github.ref_name }}
             
@@ -86,12 +83,11 @@ jobs:
             - 🌐 Per-workspace HTTP and SOCKS5 proxy integration.
             - 🔄 Seamless in-app auto-update system with cryptographic verification.
             - 📦 Native desktop installers for macOS (.dmg), Windows (.msi/.exe), and Linux (.deb/.AppImage).
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
-          args: --ignore-version-mismatches ${{ matrix.args }}
+          args: ${{ matrix.args }}
 
-  publish-release:
-    name: Publish Release & Sync Notes
+  sync-release-notes:
     needs: release-desktop
     runs-on: ubuntu-latest
     permissions:
@@ -102,7 +98,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Publish Release to Public & Update Release Notes from CHANGELOG.md
+      - name: Update GitHub Release Notes from CHANGELOG.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -130,24 +126,23 @@ jobs:
               print('Warning: tag not found in CHANGELOG.md')
           "
 
-          echo "Publishing draft release $TARGET_TAG to public and updating notes..."
-          SUCCESS=false
-          for i in {1..5}; do
-            CMD=(gh release edit "$TARGET_TAG" --repo "${{ github.repository }}" --draft=false --latest)
-            if [ -f release_notes.md ]; then
-              CMD+=(--notes-file release_notes.md)
+          if [ -f release_notes.md ]; then
+            echo "Syncing release notes for $TARGET_TAG in repo ${{ github.repository }}..."
+            SUCCESS=false
+            for i in {1..5}; do
+              if gh release edit "$TARGET_TAG" --repo "${{ github.repository }}" --notes-file release_notes.md; then
+                echo "Successfully updated $TARGET_TAG release notes on GitHub!"
+                SUCCESS=true
+                break
+              fi
+              echo "Attempt $i failed to edit release $TARGET_TAG. Waiting 5 seconds before retry..."
+              sleep 5
+            done
+            if [ "$SUCCESS" != "true" ]; then
+              echo "Failed to edit release after 5 attempts. Checking if release exists..."
+              gh release view "$TARGET_TAG" --repo "${{ github.repository }}" || echo "Release $TARGET_TAG does not exist on GitHub."
+              exit 1
             fi
-            if "${CMD[@]}"; then
-              echo "Successfully published $TARGET_TAG release on GitHub!"
-              SUCCESS=true
-              break
-            fi
-            echo "Attempt $i failed to edit release $TARGET_TAG. Waiting 5 seconds before retry..."
-            sleep 5
-          done
-
-          if [ "$SUCCESS" != "true" ]; then
-            echo "Failed to publish release after 5 attempts. Checking if release exists..."
-            gh release view "$TARGET_TAG" --repo "${{ github.repository }}" || echo "Release $TARGET_TAG does not exist on GitHub."
-            exit 1
+          else
+            echo "No release_notes.md file generated, skipping update."
           fi
