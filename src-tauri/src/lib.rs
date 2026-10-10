@@ -13,6 +13,18 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::Manager;
+                if let Some(icon) = app.default_window_icon() {
+                    for window in app.webview_windows().values() {
+                        let _ = window.set_icon(icon.clone());
+                    }
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             execute_http_request,
             open_workspace,
