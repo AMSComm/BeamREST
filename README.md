@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/AMSComm/BeamRest/releases"><img src="https://img.shields.io/badge/Release-v0.1.0-0ea5e9?style=flat-square" alt="Version 0.1.0" /></a>
+  <a href="https://github.com/AMSComm/BeamREST/releases"><img src="https://img.shields.io/badge/Release-v0.1.0-0ea5e9?style=flat-square" alt="Version 0.1.0" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-10b981?style=flat-square" alt="License MIT" /></a>
   <img src="https://img.shields.io/badge/Desktop-Tauri_v2-22c55e?style=flat-square&logo=tauri" alt="Tauri v2" />
   <img src="https://img.shields.io/badge/Engine-Rust_Reqwest-f97316?style=flat-square&logo=rust" alt="Rust Core" />
@@ -78,7 +78,7 @@ Traditional API clients like Postman or Insomnia have evolved into heavy, bloate
 - Clean, focused interface with icon-only action buttons for maximum screen real-estate.
 
 ### 8. 🔄 Interactive In-App Auto-Updater & GitHub Release Pipeline
-- Integrated with `tauri-plugin-updater` v2 targeting official GitHub releases at `AMSComm/BeamRest`.
+- Integrated with `tauri-plugin-updater` v2 targeting official GitHub releases at `AMSComm/BeamREST`.
 - Checks for updates automatically or on-demand via the status bar.
 - Displays full markdown release notes with a real-time download progress bar and 1-click relaunch.
 
@@ -136,7 +136,7 @@ my-api-workspace/
 
 ## 📥 Download & Installation
 
-Download official pre-built packages from [GitHub Releases](https://github.com/AMSComm/BeamRest/releases):
+Download official pre-built packages from [GitHub Releases](https://github.com/AMSComm/BeamREST/releases):
 
 - **macOS:** `BeamREST-universal.dmg` (Universal binary for Apple Silicon M1/M2/M3/M4 & Intel)
 - **Windows:** `BeamREST_x64-setup.exe` (NSIS Installer) / `BeamREST_x64.msi`
@@ -170,8 +170,8 @@ sudo apt update && sudo apt install -y \
 ### Setup & Run
 ```bash
 # Clone the repository
-git clone https://github.com/AMSComm/BeamRest.git
-cd BeamRest
+git clone https://github.com/AMSComm/BeamREST.git
+cd BeamREST
 
 # Install dependencies
 pnpm install

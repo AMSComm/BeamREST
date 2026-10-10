@@ -109,7 +109,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#1e293b]">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-[#f97316] to-[#fbbf24] shadow-sm shadow-[#f97316]/30 text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-[#0ea5e9] to-[#06b6d4] shadow-sm shadow-[#06b6d4]/30 text-white">
               <Zap className="h-4 w-4" />
             </div>
             <div>

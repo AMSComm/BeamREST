@@ -13,7 +13,7 @@ export interface UpdateInfo {
 }
 
 export const CURRENT_VERSION = '0.1.0'
-export const GITHUB_REPO = 'AMSComm/BeamRest'
+export const GITHUB_REPO = 'AMSComm/BeamREST'
 
 export function compareVersions(v1: string, v2: string): number {
   const parts1 = v1.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0)
