@@ -42,6 +42,7 @@ interface WorkspaceState {
   isNewRequestModalOpen: boolean
   targetProjectIdForNewRequest: string | null
   isShortcutsModalOpen: boolean
+  isUpdateModalOpen: boolean
   confirmDeleteTarget: {
     type: 'request' | 'project' | 'environment'
     projectId?: string
@@ -80,6 +81,7 @@ interface WorkspaceState {
   openNewRequestModal: (projectId?: string) => void
   setNewRequestModalOpen: (open: boolean) => void
   setShortcutsModalOpen: (open: boolean) => void
+  setUpdateModalOpen: (open: boolean) => void
   openConfirmDelete: (target: {
     type: 'request' | 'project' | 'environment'
     projectId?: string
@@ -118,6 +120,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   isNewRequestModalOpen: false,
   targetProjectIdForNewRequest: null,
   isShortcutsModalOpen: false,
+  isUpdateModalOpen: false,
   confirmDeleteTarget: null,
 
   setWorkspace: (ws) => set({ workspace: ws }),
@@ -670,6 +673,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       set({ isShortcutsModalOpen: false })
       return true
     }
+    if (get().isUpdateModalOpen) {
+      set({ isUpdateModalOpen: false })
+      return true
+    }
     return false
   },
 
@@ -718,6 +725,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
   setNewRequestModalOpen: (open) => set({ isNewRequestModalOpen: open }),
   setShortcutsModalOpen: (open) => set({ isShortcutsModalOpen: open }),
+  setUpdateModalOpen: (open) => set({ isUpdateModalOpen: open }),
   openConfirmDelete: (target) => set({ confirmDeleteTarget: target }),
   closeConfirmDelete: () => set({ confirmDeleteTarget: null }),
 }))

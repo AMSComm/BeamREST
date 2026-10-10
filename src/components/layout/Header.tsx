@@ -12,6 +12,7 @@ import {
   Globe,
   ChevronDown,
   Trash2,
+  Sparkles,
 } from 'lucide-react'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
@@ -32,6 +33,7 @@ export const Header: React.FC = () => {
     setEnvModalOpen,
     setExportModalOpen,
     setShortcutsModalOpen,
+    setUpdateModalOpen,
   } = useWorkspaceStore()
 
   const [isEditingName, setIsEditingName] = useState(false)
@@ -97,8 +99,8 @@ export const Header: React.FC = () => {
       {/* Brand & Workspace Title */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 font-semibold tracking-wide text-white">
-          <div className="relative flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-tr from-[#0ea5e9] to-[#06b6d4] shadow-sm shadow-[#06b6d4]/30">
-            <Zap className="h-3.5 w-3.5 text-white" />
+          <div className="relative flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-tr from-[#f97316] to-[#fbbf24] shadow-sm shadow-[#f97316]/30">
+            <Zap className="h-3.5 w-3.5 text-white fill-white" />
           </div>
           <span className="text-sm font-bold tracking-tight text-white">
             Beam<span className="text-[#38bdf8]">REST</span>
@@ -276,6 +278,23 @@ export const Header: React.FC = () => {
                   <PlusCircle className="h-3.5 w-3.5 text-[#38bdf8]" />
                   <span>Create New Workspace...</span>
                 </button>
+
+                <div className="h-px bg-[#1e293b] my-1" />
+
+                <button
+                  data-testid="header-dropdown-check-update-btn"
+                  onClick={() => {
+                    setIsDropdownOpen(false)
+                    setUpdateModalOpen(true)
+                  }}
+                  className="flex w-full items-center justify-between rounded px-2 py-1.5 text-[#94a3b8] hover:bg-[#131b2e] hover:text-[#fb923c] transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5 text-[#f97316]" />
+                    <span>Check for Updates...</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-[#64748b]">v0.1.0</span>
+                </button>
               </div>
             </div>
           )}
@@ -349,6 +368,16 @@ export const Header: React.FC = () => {
             <span>Export</span>
           </button>
         )}
+
+        {/* Check for Updates Button */}
+        <button
+          data-testid="header-check-update-btn"
+          onClick={() => setUpdateModalOpen(true)}
+          className="flex items-center gap-1 rounded border border-[#1e293b] bg-[#131b2e] px-2 py-1 text-[#94a3b8] hover:border-[#f97316]/50 hover:text-[#fb923c] transition-colors"
+          title="Check for Software Updates"
+        >
+          <Sparkles className="h-3.5 w-3.5 text-[#f97316]" />
+        </button>
 
         {/* Shortcuts Cheat Sheet Button */}
         <button

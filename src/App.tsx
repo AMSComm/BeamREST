@@ -11,6 +11,7 @@ import { ConfirmDeleteModal } from './components/modals/ConfirmDeleteModal'
 import { ShortcutsModal } from './components/modals/ShortcutsModal'
 import { NewWorkspaceModal } from './components/modals/NewWorkspaceModal'
 import { ProxyModal } from './components/modals/ProxyModal'
+import { UpdateDialog } from './components/common/UpdateDialog'
 import { useWorkspaceStore } from './stores/useWorkspaceStore'
 import { tauriApi } from './services/tauriApi'
 
@@ -27,6 +28,8 @@ export const App: React.FC = () => {
     setNewProjectModalOpen,
     openNewRequestModal,
     setShortcutsModalOpen,
+    isUpdateModalOpen,
+    setUpdateModalOpen,
     closeTopModal,
   } = useWorkspaceStore()
 
@@ -261,6 +264,10 @@ export const App: React.FC = () => {
       <NewRequestModal />
       <ConfirmDeleteModal />
       <ShortcutsModal />
+      <UpdateDialog
+        isOpen={isUpdateModalOpen}
+        onClose={() => setUpdateModalOpen(false)}
+      />
     </div>
   )
 }

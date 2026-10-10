@@ -476,9 +476,22 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.waitForTimeout(300)
     if (await page.locator('text="Variable & Secret Manager"').isVisible()) throw new Error('Variables modal did not close on Escape')
-    console.log('✅ Variables modal closed on Escape')
+    // 18. Test Software Update Dialog
+    console.log('🔄 18. Testing Software Update modal & version check...')
+    await page.click('[data-testid="header-check-update-btn"]')
+    await page.waitForTimeout(400)
+    const updateDialog = page.locator('[data-testid="update-dialog"]')
+    if (!(await updateDialog.isVisible())) throw new Error('Update modal did not open')
+    const updateHeaderText = await page.locator('text="BeamREST Software Update"').isVisible()
+    if (!updateHeaderText) throw new Error('Update dialog header missing')
+    console.log('✅ Software Update dialog opened and verified')
+    // Close with Escape
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    if (await updateDialog.isVisible()) throw new Error('Update modal did not close on Escape')
+    console.log('✅ Software Update dialog closed on Escape')
 
-    console.log('🎉 ALL 17 PLAYWRIGHT E2E ASSERTIONS PASSED WITH 100% SUCCESS!')
+    console.log('🎉 ALL 18 PLAYWRIGHT E2E ASSERTIONS PASSED WITH 100% SUCCESS!')
   } finally {
     await browser.close()
     if (server) {

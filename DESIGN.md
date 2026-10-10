@@ -13,6 +13,8 @@ colors:
   text-primary: "#f8fafc"
   text-secondary: "#94a3b8"
   text-muted: "#64748b"
+  brand-solar: "#f97316"
+  brand-amber: "#fbbf24"
   beam-cyan: "#06b6d4"
   beam-glow: "#22d3ee"
   accent: "#0ea5e9"
