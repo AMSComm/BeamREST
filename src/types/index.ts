@@ -93,6 +93,7 @@ export interface WorkspaceMeta {
 
 export interface LocalState {
   active_tab_id?: string
+  active_environment_id?: string
   open_request_ids: string[]
   collapsed_project_ids: string[]
 }

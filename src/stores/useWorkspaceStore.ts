@@ -8,6 +8,7 @@ import {
   ProxyConfig,
   RecentWorkspace,
   WorkspaceFull,
+  WorkspaceMeta,
 } from '../types'
 
 interface WorkspaceState {
@@ -534,11 +535,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setActiveEnvironment: (envId: string | null) => {
     const { workspace } = get()
     if (!workspace) return
+    const updatedMeta: WorkspaceMeta = {
+      ...workspace.meta,
+      active_environment_id: envId || undefined,
+    }
     set({
       workspace: {
         ...workspace,
-        meta: { ...workspace.meta, active_environment_id: envId || undefined },
+        meta: updatedMeta,
       },
+    })
+    tauriApi.saveWorkspaceMeta(workspace.path, updatedMeta).catch((err) => {
+      console.error('Failed to save active environment to workspace meta:', err)
     })
   },
 
@@ -573,13 +581,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         ? undefined
         : workspace.meta.active_environment_id
 
+    const updatedMeta: WorkspaceMeta = {
+      ...workspace.meta,
+      active_environment_id: activeEnvId,
+    }
+
     set({
       workspace: {
         ...workspace,
         environments: updatedEnvs,
-        meta: { ...workspace.meta, active_environment_id: activeEnvId },
+        meta: updatedMeta,
       },
     })
+
+    if (workspace.meta.active_environment_id === envId) {
+      tauriApi.saveWorkspaceMeta(workspace.path, updatedMeta).catch((err) => {
+        console.error('Failed to save workspace meta after deleting active env:', err)
+      })
+    }
   },
 
   saveProject: async (project: ProjectData) => {

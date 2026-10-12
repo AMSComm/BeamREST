@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import { useWorkspaceStore } from '../stores/useWorkspaceStore'
+import { tauriApi } from '../services/tauriApi'
 
 describe('Variable Interpolation & Scoping Logic', () => {
   const interpolate = (template: string, vars: Record<string, string>): string => {
@@ -46,5 +48,78 @@ describe('Variable Interpolation & Scoping Logic', () => {
 
     expect(sanitized[0].value).toBe('')
     expect(sanitized[1].value).toBe('https://api.com')
+  })
+
+  it('setActiveEnvironment updates active_environment_id and calls saveWorkspaceMeta', async () => {
+    const saveMetaSpy = vi.spyOn(tauriApi, 'saveWorkspaceMeta').mockResolvedValue()
+
+    useWorkspaceStore.setState({
+      workspace: {
+        meta: {
+          id: 'ws-1',
+          name: 'My Workspace',
+          variables: [],
+        },
+        path: '/test/path',
+        environments: [
+          {
+            id: 'env-staging',
+            name: 'Staging',
+            variables: [{ key: 'envName', value: 'staging', scope: 'environment', is_secret: false }],
+          },
+        ],
+        projects: [],
+      },
+    })
+
+    useWorkspaceStore.getState().setActiveEnvironment('env-staging')
+
+    const state = useWorkspaceStore.getState()
+    expect(state.workspace?.meta.active_environment_id).toBe('env-staging')
+    expect(saveMetaSpy).toHaveBeenCalledWith('/test/path', expect.objectContaining({
+      active_environment_id: 'env-staging',
+    }))
+
+    const vars = state.getResolvedVariables()
+    expect(vars.envName).toBe('staging')
+
+    saveMetaSpy.mockRestore()
+  })
+
+  it('deleteEnvironment clears active_environment_id and saves workspace meta when active env is deleted', async () => {
+    const saveMetaSpy = vi.spyOn(tauriApi, 'saveWorkspaceMeta').mockResolvedValue()
+    const deleteEnvSpy = vi.spyOn(tauriApi, 'deleteEnvironment').mockResolvedValue()
+
+    useWorkspaceStore.setState({
+      workspace: {
+        meta: {
+          id: 'ws-1',
+          name: 'My Workspace',
+          active_environment_id: 'env-staging',
+          variables: [],
+        },
+        path: '/test/path',
+        environments: [
+          {
+            id: 'env-staging',
+            name: 'Staging',
+            variables: [{ key: 'envName', value: 'staging', scope: 'environment', is_secret: false }],
+          },
+        ],
+        projects: [],
+      },
+    })
+
+    await useWorkspaceStore.getState().deleteEnvironment('env-staging')
+
+    const state = useWorkspaceStore.getState()
+    expect(state.workspace?.meta.active_environment_id).toBeUndefined()
+    expect(state.workspace?.environments.length).toBe(0)
+    expect(saveMetaSpy).toHaveBeenCalledWith('/test/path', expect.objectContaining({
+      active_environment_id: undefined,
+    }))
+
+    saveMetaSpy.mockRestore()
+    deleteEnvSpy.mockRestore()
   })
 })

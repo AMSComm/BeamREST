@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 
 use serde::{Deserialize, Serialize};
@@ -53,6 +53,8 @@ pub struct WorkspaceMeta {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocalState {
     pub active_tab_id: Option<String>,
+    #[serde(default)]
+    pub active_environment_id: Option<String>,
     #[serde(default)]
     pub open_request_ids: Vec<String>,
     #[serde(default)]
@@ -209,6 +211,12 @@ pub fn scan_workspace(workspace_dir_str: &str) -> Result<WorkspaceFull, String> 
         None
     };
 
+    if let Some(ref ls) = local_state {
+        if ls.active_environment_id.is_some() {
+            meta.active_environment_id = ls.active_environment_id.clone();
+        }
+    }
+
     // Load Environments
     let mut environments = Vec::new();
     let env_dir = ws_dir.join("environments");
@@ -315,6 +323,13 @@ pub fn scan_workspace(workspace_dir_str: &str) -> Result<WorkspaceFull, String> 
     projects.sort_by(|a, b| a.name.cmp(&b.name));
     ensure_gitignore(ws_dir);
 
+    // Validate active_environment_id exists in loaded environments
+    if let Some(ref active_id) = meta.active_environment_id {
+        if !environments.iter().any(|e| &e.id == active_id) {
+            meta.active_environment_id = None;
+        }
+    }
+
     Ok(WorkspaceFull {
         meta,
         path: workspace_dir_str.to_string(),
@@ -332,10 +347,9 @@ fn merge_secret_variables(base_vars: &mut Vec<Variable>, local_vars: Vec<Variabl
         .collect();
 
     for var in base_vars.iter_mut() {
-        if var.is_secret {
-            if let Some(local_var) = local_map.remove(&var.key) {
-                var.value = local_var.value;
-            }
+        if let Some(local_var) = local_map.remove(&var.key) {
+            var.value = local_var.value;
+            var.is_secret = true;
         }
     }
 
@@ -381,9 +395,14 @@ pub fn save_project(workspace_dir_str: &str, project: &ProjectData) -> Result<()
     fs::write(proj_dir.join("project.json"), json_content)
         .map_err(|e| format!("Failed to write project.json: {}", e))?;
 
-    // Secret values are NEVER stored on disk (only keys with empty value are preserved)
+    // Secret variables stored in project.local.json (.gitignored)
     let local_path = proj_dir.join("project.local.json");
-    if local_path.exists() {
+    if !secret_vars.is_empty() {
+        let secret_content = serde_json::to_string_pretty(&secret_vars)
+            .map_err(|e| format!("Failed to serialize secret variables: {}", e))?;
+        fs::write(&local_path, secret_content)
+            .map_err(|e| format!("Failed to write project.local.json: {}", e))?;
+    } else if local_path.exists() {
         let _ = fs::remove_file(local_path);
     }
 
@@ -482,9 +501,13 @@ pub fn save_environment(workspace_dir_str: &str, env: &Environment) -> Result<()
     fs::write(env_dir.join(format!("{}.env.json", safe_name)), env_json)
         .map_err(|e| format!("Failed to write environment file: {}", e))?;
 
-    // Secret values are NEVER stored on disk
     let loc_path = env_dir.join(format!("{}.env.local.json", safe_name));
-    if loc_path.exists() {
+    if !secret_vars.is_empty() {
+        let sec_json = serde_json::to_string_pretty(&secret_vars)
+            .map_err(|e| format!("Failed to serialize environment secrets: {}", e))?;
+        fs::write(&loc_path, sec_json)
+            .map_err(|e| format!("Failed to write environment secrets: {}", e))?;
+    } else if loc_path.exists() {
         let _ = fs::remove_file(loc_path);
     }
 
@@ -569,13 +592,187 @@ pub fn save_workspace_meta(workspace_dir_str: &str, meta: &WorkspaceMeta) -> Res
     fs::write(dot_beamrest.join("workspace.json"), meta_json)
         .map_err(|e| format!("Failed to write workspace.json: {}", e))?;
 
-    // Secret values are NEVER stored on disk
     let loc_path = dot_beamrest.join("workspace.local.json");
-    if loc_path.exists() {
+    if !secret_vars.is_empty() {
+        let sec_json = serde_json::to_string_pretty(&secret_vars)
+            .map_err(|e| format!("Failed to serialize workspace secrets: {}", e))?;
+        fs::write(&loc_path, sec_json)
+            .map_err(|e| format!("Failed to write workspace secrets: {}", e))?;
+    } else if loc_path.exists() {
         let _ = fs::remove_file(loc_path);
+    }
+
+    // Synchronize active_environment_id to state.local.json if local state exists
+    let state_file = dot_beamrest.join("state.local.json");
+    if state_file.exists() {
+        if let Ok(content) = fs::read_to_string(&state_file) {
+            if let Ok(mut state) = serde_json::from_str::<LocalState>(&content) {
+                state.active_environment_id = meta.active_environment_id.clone();
+                let _ = save_local_state(workspace_dir_str, &state);
+            }
+        }
     }
 
     ensure_gitignore(ws_dir);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestDir(PathBuf);
+    impl TestDir {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!("beamrest_test_{}", uuid::Uuid::new_v4()));
+            let _ = fs::create_dir_all(&path);
+            TestDir(path)
+        }
+        fn path_str(&self) -> String {
+            self.0.to_str().unwrap().to_string()
+        }
+    }
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn test_secret_variables_isolation_and_restoration() {
+        let td = TestDir::new();
+        let ws_path = td.path_str();
+
+        let _ = init_workspace(&ws_path, "Test Workspace").unwrap();
+
+        // 1. Test Project Secret Variables
+        let project = ProjectData {
+            id: "proj-1".to_string(),
+            name: "API Service".to_string(),
+            description: None,
+            auth: None,
+            variables: vec![
+                Variable {
+                    key: "apiKey".to_string(),
+                    value: "super_secret_api_key_999".to_string(),
+                    is_secret: true,
+                    scope: "project".to_string(),
+                },
+                Variable {
+                    key: "publicHost".to_string(),
+                    value: "https://api.example.com".to_string(),
+                    is_secret: false,
+                    scope: "project".to_string(),
+                },
+            ],
+            requests: vec![],
+        };
+        save_project(&ws_path, &project).unwrap();
+
+        // Verify public project.json has empty value for secret
+        let proj_json_str = fs::read_to_string(td.0.join("API Service").join("project.json")).unwrap();
+        let proj_json: serde_json::Value = serde_json::from_str(&proj_json_str).unwrap();
+        assert_eq!(proj_json["variables"][0]["value"], "");
+        assert_eq!(proj_json["variables"][0]["is_secret"], true);
+        assert_eq!(proj_json["variables"][1]["value"], "https://api.example.com");
+
+        // Verify secret project.local.json exists and holds the actual value
+        let local_proj_str = fs::read_to_string(td.0.join("API Service").join("project.local.json")).unwrap();
+        let local_proj: Vec<Variable> = serde_json::from_str(&local_proj_str).unwrap();
+        assert_eq!(local_proj[0].key, "apiKey");
+        assert_eq!(local_proj[0].value, "super_secret_api_key_999");
+
+        // 2. Test Environment Secret Variables
+        let env = Environment {
+            id: "env-prod".to_string(),
+            name: "Production".to_string(),
+            variables: vec![
+                Variable {
+                    key: "databasePassword".to_string(),
+                    value: "db_pass_12345".to_string(),
+                    is_secret: true,
+                    scope: "environment".to_string(),
+                },
+                Variable {
+                    key: "region".to_string(),
+                    value: "ap-southeast-1".to_string(),
+                    is_secret: false,
+                    scope: "environment".to_string(),
+                },
+            ],
+        };
+        save_environment(&ws_path, &env).unwrap();
+
+        // Verify public env file has empty secret value
+        let env_pub_str = fs::read_to_string(td.0.join("environments").join("Production.env.json")).unwrap();
+        let env_pub: serde_json::Value = serde_json::from_str(&env_pub_str).unwrap();
+        assert_eq!(env_pub["variables"][0]["value"], "");
+        assert_eq!(env_pub["variables"][1]["value"], "ap-southeast-1");
+
+        // Verify secret env file has actual secret value
+        let env_sec_str = fs::read_to_string(td.0.join("environments").join("Production.env.local.json")).unwrap();
+        let env_sec: Vec<Variable> = serde_json::from_str(&env_sec_str).unwrap();
+        assert_eq!(env_sec[0].key, "databasePassword");
+        assert_eq!(env_sec[0].value, "db_pass_12345");
+
+        // 3. Test Workspace Secret Variables & Active Environment persistence
+        let ws_meta = WorkspaceMeta {
+            id: "ws-test".to_string(),
+            name: "Test Workspace".to_string(),
+            active_environment_id: Some("env-prod".to_string()),
+            variables: vec![
+                Variable {
+                    key: "globalToken".to_string(),
+                    value: "bearer_xyz_777".to_string(),
+                    is_secret: true,
+                    scope: "workspace".to_string(),
+                },
+            ],
+        };
+        save_workspace_meta(&ws_path, &ws_meta).unwrap();
+
+        // 4. Test Scan Workspace (simulates restarting the app)
+        let loaded = scan_workspace(&ws_path).unwrap();
+
+        // Check active_environment_id is restored
+        assert_eq!(loaded.meta.active_environment_id, Some("env-prod".to_string()));
+
+        // Check workspace secret variable is restored
+        let ws_token_var = loaded.meta.variables.iter().find(|v| v.key == "globalToken").unwrap();
+        assert_eq!(ws_token_var.value, "bearer_xyz_777");
+        assert!(ws_token_var.is_secret);
+
+        // Check project secret variable is restored
+        let loaded_proj = loaded.projects.iter().find(|p| p.name == "API Service").unwrap();
+        let api_key_var = loaded_proj.variables.iter().find(|v| v.key == "apiKey").unwrap();
+        assert_eq!(api_key_var.value, "super_secret_api_key_999");
+        assert!(api_key_var.is_secret);
+
+        // Check environment secret variable is restored
+        let loaded_env = loaded.environments.iter().find(|e| e.name == "Production").unwrap();
+        let db_pass_var = loaded_env.variables.iter().find(|v| v.key == "databasePassword").unwrap();
+        assert_eq!(db_pass_var.value, "db_pass_12345");
+        assert!(db_pass_var.is_secret);
+    }
+
+    #[test]
+    fn test_active_environment_fallback_when_deleted() {
+        let td = TestDir::new();
+        let ws_path = td.path_str();
+
+        let _ = init_workspace(&ws_path, "Test Workspace").unwrap();
+
+        let ws_meta = WorkspaceMeta {
+            id: "ws-test".to_string(),
+            name: "Test Workspace".to_string(),
+            active_environment_id: Some("non-existent-env-id".to_string()),
+            variables: vec![],
+        };
+        save_workspace_meta(&ws_path, &ws_meta).unwrap();
+
+        let loaded = scan_workspace(&ws_path).unwrap();
+        // Since no environment has id "non-existent-env-id", it should fallback to None
+        assert_eq!(loaded.meta.active_environment_id, None);
+    }
 }
 

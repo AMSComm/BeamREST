@@ -141,6 +141,14 @@ export const tauriApi = {
         env,
       })
     }
+    if (mockWorkspaceCache && mockWorkspaceCache.path === workspacePath) {
+      const idx = mockWorkspaceCache.environments.findIndex((e) => e.id === env.id)
+      if (idx >= 0) {
+        mockWorkspaceCache.environments[idx] = env
+      } else {
+        mockWorkspaceCache.environments.push(env)
+      }
+    }
   },
 
   async deleteEnvironment(workspacePath: string, envName: string): Promise<void> {
@@ -149,6 +157,9 @@ export const tauriApi = {
         workspacePath,
         envName,
       })
+    }
+    if (mockWorkspaceCache && mockWorkspaceCache.path === workspacePath) {
+      mockWorkspaceCache.environments = mockWorkspaceCache.environments.filter((e) => e.name !== envName)
     }
   },
 
@@ -159,6 +170,9 @@ export const tauriApi = {
         meta,
       })
     }
+    if (mockWorkspaceCache && mockWorkspaceCache.path === workspacePath) {
+      mockWorkspaceCache.meta = meta
+    }
   },
 
   async saveLocalState(workspacePath: string, state: LocalState): Promise<void> {
@@ -167,6 +181,9 @@ export const tauriApi = {
         workspacePath,
         state,
       })
+    }
+    if (mockWorkspaceCache && mockWorkspaceCache.path === workspacePath) {
+      mockWorkspaceCache.local_state = state
     }
   },
 
@@ -264,8 +281,13 @@ export const tauriApi = {
   },
 }
 
+let mockWorkspaceCache: WorkspaceFull | null = null
+
 function createMockWorkspace(path: string, name = 'Default Workspace'): WorkspaceFull {
-  return {
+  if (mockWorkspaceCache && mockWorkspaceCache.path === path) {
+    return mockWorkspaceCache
+  }
+  mockWorkspaceCache = {
     meta: {
       id: 'mock-ws-1',
       name,
@@ -362,4 +384,5 @@ function createMockWorkspace(path: string, name = 'Default Workspace'): Workspac
       },
     ],
   }
+  return mockWorkspaceCache
 }
