@@ -5,6 +5,17 @@ All notable changes to **BeamREST** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.1] - 2026-10-12
+
+### Fixed
+- **Secret Variable Persistence**: Restored dual-tier secret isolation storage across Projects, Environments, and Workspaces. Secret values are safely persisted into `.local.json` files (`project.local.json`, `<env>.env.local.json`, `.beamrest/workspace.local.json`), preventing credential loss upon app restarts while keeping Git commits secret-free.
+- **Active Environment Retention**: Workspaces now automatically persist the selected active environment in `.beamrest/workspace.json` and sync with `.beamrest/state.local.json`, cleanly restoring the user's chosen environment on app launch.
+- **Safe Environment Fallback**: Added validation during workspace scanning to gracefully reset active environment if a deleted environment ID was previously referenced.
+
+### Internal
+- Added automated Rust storage tests verifying secret variable isolation and active environment restoration.
+- Added frontend store unit tests for active environment lifecycle and variable resolution.
+
 ## [v0.1.0] - 2026-10-10
 
 ### 🚀 Initial Public Release of BeamREST
