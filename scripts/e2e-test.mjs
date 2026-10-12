@@ -96,7 +96,7 @@ async function run() {
     await page.click('button:has-text("Create Project")')
     await page.waitForTimeout(400)
 
-    const createdProj = page.locator('text="Billing Service"')
+    const createdProj = page.locator('aside').getByText('Billing Service', { exact: true })
     if (!(await createdProj.isVisible())) throw new Error('Newly created project not visible in sidebar')
     console.log('✅ New Project created and visible in sidebar')
 
@@ -117,6 +117,40 @@ async function run() {
     const createdReq = page.locator('text="Get Invoices List"').first()
     if (!(await createdReq.isVisible())) throw new Error('Newly created request not visible in sidebar')
     console.log('✅ New Request created and visible in sidebar')
+
+    // 4.1 Test Request Renaming (from RequestPane and Sidebar)
+    console.log('✏️ 4.1. Testing Request Renaming from RequestPane and Sidebar...')
+    const paneEditBtn = page.locator('[data-testid="request-pane-edit-name-btn"]')
+    await paneEditBtn.click()
+    await page.waitForTimeout(200)
+
+    const paneNameInput = page.locator('[data-testid="request-pane-name-input"]')
+    await paneNameInput.fill('Get Invoices List (Pane Renamed)')
+    await page.click('[data-testid="request-pane-save-name-btn"]')
+    await page.waitForTimeout(300)
+
+    const paneUpdatedTitle = page.locator('[data-testid="request-pane-name"]')
+    if ((await paneUpdatedTitle.textContent()) !== 'Get Invoices List (Pane Renamed)') {
+      throw new Error('Request title not updated in RequestPane')
+    }
+    console.log('✅ Request renamed from RequestPane title bar')
+
+    // Rename back from Sidebar
+    const activeReqItem = page.locator('[data-testid^="sidebar-request-"]').filter({ hasText: 'Get Invoices List (Pane Renamed)' })
+    const sidebarRenameBtn = activeReqItem.locator('button[title="Rename Request"]')
+    await sidebarRenameBtn.click({ force: true })
+    await page.waitForTimeout(200)
+
+    const sidebarRenameInput = page.locator('input[data-testid^="sidebar-rename-input-"]').first()
+    await sidebarRenameInput.fill('Get Invoices List')
+    const sidebarSaveRenameBtn = page.locator('button[data-testid^="sidebar-save-rename-btn-"]').first()
+    await sidebarSaveRenameBtn.click()
+    await page.waitForTimeout(300)
+
+    if ((await paneUpdatedTitle.textContent()) !== 'Get Invoices List') {
+      throw new Error('Request title not updated after Sidebar rename')
+    }
+    console.log('✅ Request renamed from Sidebar inline input')
 
     // 5. Test Request Configuration (URL, Params, Headers, Body, Auth, Extractors)
     console.log('🔧 5. Testing Request Editor tabs & inputs...')

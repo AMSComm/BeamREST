@@ -63,6 +63,7 @@ interface WorkspaceState {
   createProject: (name: string) => Promise<void>
   deleteProject: (projectId: string) => Promise<void>
   createRequest: (projectId: string, name: string, method?: string) => Promise<void>
+  renameRequest: (projectId: string, requestId: string, newName: string) => Promise<void>
   deleteRequest: (projectId: string, requestId: string) => Promise<void>
   setActiveEnvironment: (envId: string | null) => void
   saveEnvironment: (env: Environment) => Promise<void>
@@ -499,6 +500,50 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         [newReq.id]: JSON.stringify(newReq),
       },
     })
+  },
+
+  renameRequest: async (projectId: string, requestId: string, newName: string) => {
+    const { workspace, activeRequestId, activeRequest, savedRequestSnapshots } = get()
+    if (!workspace) return
+    const trimmed = newName.trim()
+    if (!trimmed) return
+
+    const proj = workspace.projects.find((p) => p.id === projectId)
+    if (!proj) return
+
+    const targetReq = proj.requests.find((r) => r.id === requestId)
+    if (!targetReq || targetReq.name === trimmed) return
+
+    const oldName = targetReq.name
+    const updatedReq: BeamRequest =
+      activeRequestId === requestId && activeRequest
+        ? { ...activeRequest, name: trimmed }
+        : { ...targetReq, name: trimmed }
+
+    await tauriApi.deleteRequest(workspace.path, proj.name, oldName)
+    await tauriApi.saveRequest(workspace.path, proj.name, updatedReq)
+
+    const updatedProjects = workspace.projects.map((p) => {
+      if (p.id !== projectId) return p
+      return {
+        ...p,
+        requests: p.requests.map((r) => (r.id === requestId ? updatedReq : r)),
+      }
+    })
+
+    const nextState: Partial<WorkspaceState> = {
+      workspace: { ...workspace, projects: updatedProjects },
+      savedRequestSnapshots: {
+        ...savedRequestSnapshots,
+        [requestId]: JSON.stringify(updatedReq),
+      },
+    }
+
+    if (activeRequestId === requestId) {
+      nextState.activeRequest = { ...updatedReq }
+    }
+
+    set(nextState)
   },
 
   deleteRequest: async (projectId: string, requestId: string) => {

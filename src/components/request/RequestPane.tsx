@@ -5,6 +5,8 @@ import {
   Plus,
   Trash2,
   Loader2,
+  Edit2,
+  Check,
 } from 'lucide-react'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 import { CodeEditor } from '../common/CodeEditor'
@@ -17,14 +19,31 @@ const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'
 export const RequestPane: React.FC = () => {
   const {
     activeRequest,
+    activeProjectId,
+    workspace,
     isSending,
     activeTab,
     updateActiveRequest,
+    renameRequest,
     sendRequest,
     saveActiveRequest,
     isRequestDirty,
     setActiveTab,
   } = useWorkspaceStore()
+
+  const [isEditingName, setIsEditingName] = React.useState(false)
+  const [editedName, setEditedName] = React.useState('')
+
+  const currentProject = workspace?.projects.find((p) => p.id === activeProjectId)
+
+  const handleSaveRename = async () => {
+    if (!activeRequest || !activeProjectId) return
+    const trimmed = editedName.trim()
+    if (trimmed && trimmed !== activeRequest.name) {
+      await renameRequest(activeProjectId, activeRequest.id, trimmed)
+    }
+    setIsEditingName(false)
+  }
 
   if (!activeRequest) {
     return (
@@ -134,6 +153,78 @@ export const RequestPane: React.FC = () => {
 
   return (
     <div className="flex flex-1 flex-col h-full bg-[#0b0f19] text-xs">
+      {/* Request Header Bar with Breadcrumb & Editable Title */}
+      <div className="flex items-center justify-between border-b border-[#1e293b] px-3 py-1.5 bg-[#080c14]">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {currentProject && (
+            <span className="text-[11px] font-medium text-[#64748b] shrink-0 truncate max-w-[160px]">
+              {currentProject.name} <span className="text-[#334155]">/</span>
+            </span>
+          )}
+
+          {isEditingName ? (
+            <div className="flex items-center gap-1.5 flex-1 max-w-sm">
+              <input
+                data-testid="request-pane-name-input"
+                type="text"
+                autoFocus
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    await handleSaveRename()
+                  } else if (e.key === 'Escape') {
+                    setIsEditingName(false)
+                  }
+                }}
+                onBlur={handleSaveRename}
+                className="w-full rounded border border-[#38bdf8] bg-[#131b2e] px-2 py-0.5 text-xs text-[#f8fafc] focus:outline-none"
+              />
+              <button
+                data-testid="request-pane-save-name-btn"
+                onMouseDown={async (e) => {
+                  e.preventDefault()
+                  await handleSaveRename()
+                }}
+                className="rounded p-1 text-[#10b981] hover:bg-[#1e293b] cursor-pointer"
+                title="Save Name"
+              >
+                <Check className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <div
+              className="flex items-center gap-1.5 group cursor-pointer truncate"
+              onClick={() => {
+                setEditedName(activeRequest.name)
+                setIsEditingName(true)
+              }}
+              title="Click to rename request"
+            >
+              <h2
+                data-testid="request-pane-name"
+                className="font-semibold text-xs text-[#f8fafc] group-hover:text-[#38bdf8] transition-colors truncate"
+              >
+                {activeRequest.name}
+              </h2>
+              <button
+                data-testid="request-pane-edit-name-btn"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setEditedName(activeRequest.name)
+                  setIsEditingName(true)
+                }}
+                className="rounded p-0.5 text-[#64748b] hover:text-[#38bdf8] opacity-60 group-hover:opacity-100 transition-all cursor-pointer"
+                title="Rename Request"
+              >
+                <Edit2 className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Top URL and Action Bar */}
       <div className="flex items-center gap-2 border-b border-[#1e293b] p-3 bg-[#0e1322]">
         {/* Method Picker */}

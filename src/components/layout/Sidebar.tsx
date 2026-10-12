@@ -6,8 +6,11 @@ import {
   Plus,
   Trash2,
   FolderPlus,
+  Edit2,
+  Check,
 } from 'lucide-react'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
+import { BeamRequest } from '../../types'
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'text-[#10b981] bg-[#10b981]/10 border-[#10b981]/30',
@@ -26,12 +29,15 @@ export const Sidebar: React.FC = () => {
     activeRequestId,
     selectRequest,
     isRequestDirty,
+    renameRequest,
     setNewProjectModalOpen,
     openNewRequestModal,
     openConfirmDelete,
   } = useWorkspaceStore()
 
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({})
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null)
+  const [editingRequestName, setEditingRequestName] = useState<string>('')
 
   const toggleCollapse = (id: string) => {
     setCollapsedProjects((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -40,6 +46,20 @@ export const Sidebar: React.FC = () => {
   const handleCreateRequest = (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     openNewRequestModal(projectId)
+  }
+
+  const handleStartRename = (req: BeamRequest, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setEditingRequestId(req.id)
+    setEditingRequestName(req.name)
+  }
+
+  const handleSaveRename = async (projectId: string, reqId: string) => {
+    const trimmed = editingRequestName.trim()
+    if (trimmed) {
+      await renameRequest(projectId, reqId, trimmed)
+    }
+    setEditingRequestId(null)
   }
 
   const handleDeleteRequest = (
@@ -163,32 +183,85 @@ export const Sidebar: React.FC = () => {
                                 : 'text-[#94a3b8] hover:bg-[#131b2e] hover:text-[#f8fafc]'
                             }`}
                           >
-                            <div className="flex items-center gap-2 truncate">
-                              <span
-                                className={`rounded border px-1 py-0.2 text-[9px] font-mono font-bold tracking-tight uppercase ${methodStyle}`}
+                            {editingRequestId === req.id ? (
+                              <div
+                                className="flex items-center gap-1 w-full"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                {req.method}
-                              </span>
-                              <span className="truncate">{req.name}</span>
-                              {isRequestDirty(req.id) && (
-                                <span
-                                  data-testid={`sidebar-unsaved-dot-${req.id}`}
-                                  className="h-1.5 w-1.5 rounded-full bg-[#38bdf8] shrink-0"
-                                  title="Unsaved changes"
+                                <input
+                                  data-testid={`sidebar-rename-input-${req.id}`}
+                                  type="text"
+                                  autoFocus
+                                  value={editingRequestName}
+                                  onChange={(e) => setEditingRequestName(e.target.value)}
+                                  onKeyDown={async (e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      await handleSaveRename(project.id, req.id)
+                                    } else if (e.key === 'Escape') {
+                                      setEditingRequestId(null)
+                                    }
+                                  }}
+                                  onBlur={async () => {
+                                    await handleSaveRename(project.id, req.id)
+                                  }}
+                                  className="w-full rounded border border-[#38bdf8] bg-[#131b2e] px-1.5 py-0.5 text-xs text-white focus:outline-none"
                                 />
-                              )}
-                            </div>
+                                <button
+                                  data-testid={`sidebar-save-rename-btn-${req.id}`}
+                                  onMouseDown={async (e) => {
+                                    e.preventDefault()
+                                    await handleSaveRename(project.id, req.id)
+                                  }}
+                                  className="rounded p-1 text-[#10b981] hover:bg-[#1e293b] cursor-pointer"
+                                  title="Save Name"
+                                >
+                                  <Check className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div
+                                  className="flex items-center gap-2 truncate flex-1"
+                                  onDoubleClick={(e) => handleStartRename(req, e)}
+                                >
+                                  <span
+                                    className={`rounded border px-1 py-0.2 text-[9px] font-mono font-bold tracking-tight uppercase ${methodStyle}`}
+                                  >
+                                    {req.method}
+                                  </span>
+                                  <span className="truncate" title={req.name}>{req.name}</span>
+                                  {isRequestDirty(req.id) && (
+                                    <span
+                                      data-testid={`sidebar-unsaved-dot-${req.id}`}
+                                      className="h-1.5 w-1.5 rounded-full bg-[#38bdf8] shrink-0"
+                                      title="Unsaved changes"
+                                    />
+                                  )}
+                                </div>
 
-                            <button
-                              data-testid={`sidebar-delete-request-btn-${req.id}`}
-                              onClick={(e) =>
-                                handleDeleteRequest(project.id, req.id, req.name, e)
-                              }
-                              className="opacity-0 group-hover:opacity-100 rounded p-1 text-[#64748b] hover:bg-[#0f172a] hover:text-[#ef4444] transition-all"
-                              title="Delete Request"
-                            >
-                              <Trash2 className="h-2.5 w-2.5" />
-                            </button>
+                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                                  <button
+                                    data-testid={`sidebar-rename-request-btn-${req.id}`}
+                                    onClick={(e) => handleStartRename(req, e)}
+                                    className="rounded p-1 text-[#64748b] hover:bg-[#0f172a] hover:text-[#38bdf8] transition-all cursor-pointer"
+                                    title="Rename Request"
+                                  >
+                                    <Edit2 className="h-2.5 w-2.5" />
+                                  </button>
+                                  <button
+                                    data-testid={`sidebar-delete-request-btn-${req.id}`}
+                                    onClick={(e) =>
+                                      handleDeleteRequest(project.id, req.id, req.name, e)
+                                    }
+                                    className="rounded p-1 text-[#64748b] hover:bg-[#0f172a] hover:text-[#ef4444] transition-all cursor-pointer"
+                                    title="Delete Request"
+                                  >
+                                    <Trash2 className="h-2.5 w-2.5" />
+                                  </button>
+                                </div>
+                              </>
+                            )}
                           </div>
                         )
                       })
