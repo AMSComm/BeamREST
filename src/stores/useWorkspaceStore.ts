@@ -4,8 +4,10 @@ import {
   BeamRequest,
   BeamResponse,
   Environment,
+  LocalState,
   ProjectData,
   ProxyConfig,
+  RecentRequestItem,
   RecentWorkspace,
   WorkspaceFull,
   WorkspaceMeta,
@@ -98,11 +100,50 @@ interface WorkspaceState {
   fetchRecentWorkspaces: () => Promise<void>
   removeRecentWorkspace: (path: string) => Promise<void>
   closeTopModal: () => boolean
+
+  // Recent Requests
+  recentRequests: RecentRequestItem[]
+  addRecentRequest: (projectId: string, req: BeamRequest) => void
+  clearRecentRequests: () => void
+  persistRecentRequests: (recents: RecentRequestItem[]) => Promise<void>
+}
+
+function restoreAndSanitizeRecents(
+  ws: WorkspaceFull,
+  fallbackRaw?: string | null
+): RecentRequestItem[] {
+  let list: RecentRequestItem[] = []
+  if (ws.local_state?.recent_requests && Array.isArray(ws.local_state.recent_requests)) {
+    list = ws.local_state.recent_requests
+  } else if (fallbackRaw) {
+    try {
+      list = JSON.parse(fallbackRaw)
+    } catch {
+      list = []
+    }
+  }
+
+  const sanitized: RecentRequestItem[] = []
+  for (const item of list) {
+    const proj = ws.projects.find((p) => p.id === item.project_id)
+    if (!proj) continue
+    const req = proj.requests.find((r) => r.id === item.request_id)
+    if (!req) continue
+    sanitized.push({
+      ...item,
+      project_name: proj.name,
+      request_name: req.name,
+      method: req.method,
+    })
+  }
+
+  return sanitized.slice(0, 15)
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   workspace: null,
   recentWorkspaces: [],
+  recentRequests: [],
   activeProjectId: null,
   activeRequestId: null,
   activeRequest: null,
@@ -244,16 +285,52 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         }
       }
       const recents = await tauriApi.saveRecentWorkspace(path, ws.meta.name)
+
+      const fallbackLocal =
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem(`beamrest:recent_requests:${path}`) ||
+            localStorage.getItem('beamrest:recent_requests')
+          : null
+      let recentReqs = restoreAndSanitizeRecents(ws, fallbackLocal)
+
+      if (recentReqs.length === 0 && ws.projects.length > 0 && ws.projects[0].requests.length > 0) {
+        const fp = ws.projects[0]
+        const fr = fp.requests[0]
+        recentReqs = [
+          {
+            project_id: fp.id,
+            project_name: fp.name,
+            request_id: fr.id,
+            request_name: fr.name,
+            method: fr.method,
+            timestamp: Date.now(),
+          },
+        ]
+      }
+
       set({
         workspace: ws,
         error: null,
         savedRequestSnapshots: snapshots,
         recentWorkspaces: recents,
+        recentRequests: recentReqs,
       })
+      get().persistRecentRequests(recentReqs)
       await tauriApi.saveLastWorkspacePath(path)
 
-      // Auto-select first request if available
-      if (ws.projects.length > 0 && ws.projects[0].requests.length > 0) {
+      // Auto-select top recent request if available, otherwise first request
+      if (recentReqs.length > 0) {
+        const top = recentReqs[0]
+        const topProj = ws.projects.find((p) => p.id === top.project_id)
+        const topReq = topProj?.requests.find((r) => r.id === top.request_id)
+        if (topProj && topReq) {
+          set({
+            activeProjectId: topProj.id,
+            activeRequestId: topReq.id,
+            activeRequest: { ...topReq },
+          })
+        }
+      } else if (ws.projects.length > 0 && ws.projects[0].requests.length > 0) {
         const firstProj = ws.projects[0]
         const firstReq = firstProj.requests[0]
         set({
@@ -277,12 +354,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         }
       }
       const recents = await tauriApi.saveRecentWorkspace(path, name)
+      let recentReqs: RecentRequestItem[] = []
+      if (ws.projects.length > 0 && ws.projects[0].requests.length > 0) {
+        const fp = ws.projects[0]
+        const fr = fp.requests[0]
+        recentReqs = [
+          {
+            project_id: fp.id,
+            project_name: fp.name,
+            request_id: fr.id,
+            request_name: fr.name,
+            method: fr.method,
+            timestamp: Date.now(),
+          },
+        ]
+      }
       set({
         workspace: ws,
         error: null,
         savedRequestSnapshots: snapshots,
         recentWorkspaces: recents,
+        recentRequests: recentReqs,
       })
+      get().persistRecentRequests(recentReqs)
       await tauriApi.saveLastWorkspacePath(path)
 
       if (ws.projects.length > 0 && ws.projects[0].requests.length > 0) {
@@ -314,6 +408,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       response: null,
       curlText: null,
     })
+
+    get().addRecentRequest(projectId, req)
   },
 
   updateActiveRequest: (patch) => {
@@ -335,6 +431,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       activeRequest: updated,
       workspace: { ...workspace, projects: updatedProjects },
     })
+
+    if (patch.method || patch.name) {
+      const updatedRecents = get().recentRequests.map((r) => {
+        if (r.request_id !== activeRequestId) return r
+        return {
+          ...r,
+          method: patch.method ?? r.method,
+          request_name: patch.name ?? r.request_name,
+        }
+      })
+      set({ recentRequests: updatedRecents })
+      get().persistRecentRequests(updatedRecents)
+    }
 
     if (responseTab === 'curl') {
       get().updateCurlText()
@@ -412,8 +521,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const updatedProjects = workspace.projects.filter((p) => p.id !== projectId)
     const nextProj = updatedProjects.length > 0 ? updatedProjects[0] : null
 
+    const updatedRecents = get().recentRequests.filter((r) => r.project_id !== projectId)
+
     set({
       workspace: { ...workspace, projects: updatedProjects },
+      recentRequests: updatedRecents,
       activeProjectId: activeProjectId === projectId ? (nextProj ? nextProj.id : null) : activeProjectId,
       activeRequestId:
         activeProjectId === projectId
@@ -429,6 +541,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           : get().activeRequest,
       response: null,
     })
+    get().persistRecentRequests(updatedRecents)
   },
 
   renameProject: async (projectId: string, newName: string) => {
@@ -456,10 +569,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return { ...p, name: trimmed }
     })
 
+    const updatedRecents = get().recentRequests.map((r) =>
+      r.project_id === projectId ? { ...r, project_name: trimmed } : r
+    )
+
     set({
       workspace: { ...workspace, projects: updatedProjects },
+      recentRequests: updatedRecents,
       error: null,
     })
+    get().persistRecentRequests(updatedRecents)
   },
 
   createProject: async (name: string) => {
@@ -532,6 +651,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         [newReq.id]: JSON.stringify(newReq),
       },
     })
+
+    get().addRecentRequest(projectId, newReq)
   },
 
   renameRequest: async (projectId: string, requestId: string, newName: string) => {
@@ -563,8 +684,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       }
     })
 
+    const updatedRecents = get().recentRequests.map((r) =>
+      r.request_id === requestId ? { ...r, request_name: trimmed } : r
+    )
+
     const nextState: Partial<WorkspaceState> = {
       workspace: { ...workspace, projects: updatedProjects },
+      recentRequests: updatedRecents,
       savedRequestSnapshots: {
         ...savedRequestSnapshots,
         [requestId]: JSON.stringify(updatedReq),
@@ -576,6 +702,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     set(nextState)
+    get().persistRecentRequests(updatedRecents)
   },
 
   deleteRequest: async (projectId: string, requestId: string) => {
@@ -602,11 +729,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           : null
         : get().activeRequest
 
+    const updatedRecents = get().recentRequests.filter((r) => r.request_id !== requestId)
+
     set({
       workspace: { ...workspace, projects: updatedProjects },
+      recentRequests: updatedRecents,
       activeRequest: newActiveReq ? { ...newActiveReq } : null,
       activeRequestId: newActiveReq ? newActiveReq.id : null,
     })
+    get().persistRecentRequests(updatedRecents)
   },
 
   setActiveEnvironment: (envId: string | null) => {
@@ -824,5 +955,69 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setUpdateModalOpen: (open) => set({ isUpdateModalOpen: open }),
   openConfirmDelete: (target) => set({ confirmDeleteTarget: target }),
   closeConfirmDelete: () => set({ confirmDeleteTarget: null }),
+
+  addRecentRequest: (projectId: string, req: BeamRequest) => {
+    const { workspace, recentRequests } = get()
+    if (!workspace) return
+
+    const proj = workspace.projects.find((p) => p.id === projectId)
+    const projName = proj ? proj.name : 'Unknown Project'
+
+    const newItem: RecentRequestItem = {
+      project_id: projectId,
+      project_name: projName,
+      request_id: req.id,
+      request_name: req.name,
+      method: req.method,
+      timestamp: Date.now(),
+    }
+
+    const filtered = recentRequests.filter(
+      (r) => !(r.project_id === projectId && r.request_id === req.id)
+    )
+    const updated = [newItem, ...filtered].slice(0, 15)
+
+    set({ recentRequests: updated })
+    get().persistRecentRequests(updated)
+  },
+
+  clearRecentRequests: () => {
+    set({ recentRequests: [] })
+    get().persistRecentRequests([])
+  },
+
+  persistRecentRequests: async (recents: RecentRequestItem[]) => {
+    const { workspace } = get()
+    if (!workspace) return
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(`beamrest:recent_requests:${workspace.path}`, JSON.stringify(recents))
+        localStorage.setItem('beamrest:recent_requests', JSON.stringify(recents))
+      }
+    } catch {
+      // ignore
+    }
+
+    try {
+      const currentState = workspace.local_state || {
+        open_request_ids: [],
+        collapsed_project_ids: [],
+      }
+      const updatedLocalState: LocalState = {
+        ...currentState,
+        recent_requests: recents,
+      }
+      await tauriApi.saveLocalState(workspace.path, updatedLocalState)
+      set({
+        workspace: {
+          ...workspace,
+          local_state: updatedLocalState,
+        },
+      })
+    } catch {
+      // ignore
+    }
+  },
 }))
 

@@ -91,11 +91,21 @@ export interface WorkspaceMeta {
   variables: Variable[]
 }
 
+export interface RecentRequestItem {
+  request_id: string
+  project_id: string
+  project_name: string
+  request_name: string
+  method: string
+  timestamp: number
+}
+
 export interface LocalState {
   active_tab_id?: string
   active_environment_id?: string
   open_request_ids: string[]
   collapsed_project_ids: string[]
+  recent_requests?: RecentRequestItem[]
 }
 
 export interface WorkspaceFull {

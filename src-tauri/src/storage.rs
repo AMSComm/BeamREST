@@ -50,7 +50,17 @@ pub struct WorkspaceMeta {
     pub variables: Vec<Variable>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RecentRequestItem {
+    pub request_id: String,
+    pub project_id: String,
+    pub project_name: String,
+    pub request_name: String,
+    pub method: String,
+    pub timestamp: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LocalState {
     pub active_tab_id: Option<String>,
     #[serde(default)]
@@ -59,6 +69,8 @@ pub struct LocalState {
     pub open_request_ids: Vec<String>,
     #[serde(default)]
     pub collapsed_project_ids: Vec<String>,
+    #[serde(default)]
+    pub recent_requests: Vec<RecentRequestItem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -830,6 +842,38 @@ mod tests {
 
         rename_project(&ws_path, "Renamed Project", "Renamed Project").unwrap();
         assert!(rename_project(&ws_path, "Non Existent", "New Name").is_err());
+    }
+
+    #[test]
+    fn test_recent_requests_persistence() {
+        let td = TestDir::new();
+        let ws_path = td.path_str();
+
+        let _ = init_workspace(&ws_path, "Test Workspace").unwrap();
+
+        let local_state = LocalState {
+            active_tab_id: Some("params".to_string()),
+            active_environment_id: None,
+            open_request_ids: vec!["req-get-sample".to_string()],
+            collapsed_project_ids: vec![],
+            recent_requests: vec![RecentRequestItem {
+                request_id: "req-get-sample".to_string(),
+                project_id: "proj-default".to_string(),
+                project_name: "Default Project".to_string(),
+                request_name: "Sample GET Request".to_string(),
+                method: "GET".to_string(),
+                timestamp: 123456789,
+            }],
+        };
+
+        save_local_state(&ws_path, &local_state).unwrap();
+
+        let loaded = scan_workspace(&ws_path).unwrap();
+        assert!(loaded.local_state.is_some());
+        let ls = loaded.local_state.unwrap();
+        assert_eq!(ls.recent_requests.len(), 1);
+        assert_eq!(ls.recent_requests[0].request_name, "Sample GET Request");
+        assert_eq!(ls.recent_requests[0].method, "GET");
     }
 }
 

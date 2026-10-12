@@ -8,6 +8,7 @@ import {
   FolderPlus,
   Edit2,
   Check,
+  Clock,
 } from 'lucide-react'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 import { BeamRequest } from '../../types'
@@ -34,6 +35,8 @@ export const Sidebar: React.FC = () => {
     setNewProjectModalOpen,
     openNewRequestModal,
     openConfirmDelete,
+    recentRequests,
+    clearRecentRequests,
   } = useWorkspaceStore()
 
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({})
@@ -344,6 +347,83 @@ export const Sidebar: React.FC = () => {
             )
           })
         )}
+      </div>
+
+      {/* Recent Requests Section */}
+      <div
+        data-testid="sidebar-recent-requests-section"
+        className="border-t border-[#1e293b] bg-[#090d16] shrink-0 flex flex-col max-h-[40%]"
+      >
+        <div className="flex h-8 items-center justify-between px-3 text-[#64748b] shrink-0 border-b border-[#162033]/60">
+          <div className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-[11px] text-[#94a3b8]">
+            <Clock className="h-3.5 w-3.5 text-[#38bdf8]" />
+            <span>Recent Requests</span>
+            {recentRequests.length > 0 && (
+              <span
+                data-testid="sidebar-recent-requests-count"
+                className="rounded-full bg-[#1e293b] px-1.5 py-0.2 text-[10px] text-[#94a3b8]"
+              >
+                {recentRequests.length}
+              </span>
+            )}
+          </div>
+          {recentRequests.length > 0 && (
+            <button
+              data-testid="sidebar-clear-recent-requests-btn"
+              onClick={clearRecentRequests}
+              className="rounded p-1 text-[#64748b] hover:bg-[#1e293b] hover:text-[#ef4444] transition-colors cursor-pointer"
+              title="Clear Recent Requests"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+
+        <div
+          data-testid="sidebar-recent-requests-list"
+          className="overflow-y-auto p-1.5 space-y-0.5 max-h-48"
+        >
+          {recentRequests.length === 0 ? (
+            <div className="py-2.5 text-center text-[11px] text-[#475569]">
+              No recent requests
+            </div>
+          ) : (
+            recentRequests.map((item) => {
+              const isItemActive = activeRequestId === item.request_id
+              const methodStyle = METHOD_COLORS[item.method] || 'text-white'
+              return (
+                <div
+                  key={`${item.project_id}-${item.request_id}`}
+                  data-testid={`sidebar-recent-request-${item.request_id}`}
+                  onClick={() => {
+                    setCollapsedProjects((prev) => ({ ...prev, [item.project_id]: false }))
+                    selectRequest(item.project_id, item.request_id)
+                  }}
+                  className={`group flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors ${
+                    isItemActive
+                      ? 'bg-[#131b2e] text-white border-l-2 border-[#0ea5e9]'
+                      : 'text-[#94a3b8] hover:bg-[#0f172a] hover:text-[#f8fafc]'
+                  }`}
+                  title={`${item.method} ${item.request_name} (${item.project_name})`}
+                >
+                  <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                    <span
+                      className={`rounded border px-1 py-0.2 text-[9px] font-mono font-bold tracking-tight uppercase shrink-0 ${methodStyle}`}
+                    >
+                      {item.method}
+                    </span>
+                    <span className="truncate text-xs font-medium text-[#f8fafc]">
+                      {item.request_name}
+                    </span>
+                    <span className="truncate text-[10px] text-[#64748b]">
+                      · {item.project_name}
+                    </span>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
       </div>
     </aside>
   )

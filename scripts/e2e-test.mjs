@@ -182,6 +182,24 @@ async function run() {
     }
     console.log('✅ Request renamed from Sidebar inline input')
 
+    // 4.2 Test Recent Requests section in Sidebar
+    console.log('🕒 4.2. Testing Recent Requests section in Sidebar...')
+    const recentSection = page.locator('[data-testid="sidebar-recent-requests-section"]')
+    if (!(await recentSection.isVisible())) throw new Error('Recent Requests section not visible in sidebar')
+
+    const recentItem = page.locator('[data-testid^="sidebar-recent-request-"]').first()
+    if (!(await recentItem.isVisible())) throw new Error('Recent request item not visible in list')
+
+    const recentItemText = await recentItem.innerText()
+    if (!recentItemText.includes('Get Invoices List')) {
+      throw new Error(`Recent request does not contain expected name: ${recentItemText}`)
+    }
+    console.log('✅ Recent request item shows "Get Invoices List"')
+
+    await recentItem.click()
+    await page.waitForTimeout(200)
+    console.log('✅ Recent request item clicked and selected')
+
     // 5. Test Request Configuration (URL, Params, Headers, Body, Auth, Extractors)
     console.log('🔧 5. Testing Request Editor tabs & inputs...')
 
