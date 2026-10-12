@@ -29,6 +29,7 @@ export const Sidebar: React.FC = () => {
     activeRequestId,
     selectRequest,
     isRequestDirty,
+    renameProject,
     renameRequest,
     setNewProjectModalOpen,
     openNewRequestModal,
@@ -36,6 +37,8 @@ export const Sidebar: React.FC = () => {
   } = useWorkspaceStore()
 
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({})
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
+  const [editingProjectName, setEditingProjectName] = useState<string>('')
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null)
   const [editingRequestName, setEditingRequestName] = useState<string>('')
 
@@ -46,6 +49,23 @@ export const Sidebar: React.FC = () => {
   const handleCreateRequest = (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     openNewRequestModal(projectId)
+  }
+
+  const handleStartProjectRename = (
+    project: { id: string; name: string },
+    e?: React.MouseEvent
+  ) => {
+    if (e) e.stopPropagation()
+    setEditingProjectId(project.id)
+    setEditingProjectName(project.name)
+  }
+
+  const handleSaveProjectRename = async (projectId: string) => {
+    const trimmed = editingProjectName.trim()
+    if (trimmed) {
+      await renameProject(projectId, trimmed)
+    }
+    setEditingProjectId(null)
   }
 
   const handleStartRename = (req: BeamRequest, e?: React.MouseEvent) => {
@@ -113,48 +133,100 @@ export const Sidebar: React.FC = () => {
             const isProjectActive = activeProjectId === project.id
 
             return (
-              <div key={project.id} className="rounded border border-[#162033] bg-[#0b0f19]">
+              <div key={project.id} data-testid={`sidebar-project-${project.id}`} className="rounded border border-[#162033] bg-[#0b0f19]">
                 {/* Project Header */}
                 <div
+                  data-testid={`sidebar-project-header-${project.id}`}
                   onClick={() => toggleCollapse(project.id)}
                   className={`group flex items-center justify-between px-2.5 py-1.5 cursor-pointer rounded hover:bg-[#131b2e] transition-colors ${
                     isProjectActive ? 'border-l-2 border-[#0ea5e9]' : ''
                   }`}
                 >
-                  <div className="flex items-center gap-2 truncate">
-                    {isCollapsed ? (
-                      <ChevronRight className="h-3.5 w-3.5 text-[#64748b]" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5 text-[#64748b]" />
-                    )}
-                    <Folder className="h-3.5 w-3.5 text-[#38bdf8]" />
-                    <span className="font-medium text-[#f8fafc] truncate">
-                      {project.name}
-                    </span>
-                    <span className="rounded-full bg-[#1e293b] px-1.5 py-0.2 text-[10px] text-[#94a3b8]">
-                      {project.requests.length}
-                    </span>
-                  </div>
+                  {editingProjectId === project.id ? (
+                    <div
+                      className="flex items-center gap-1 w-full"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        data-testid={`sidebar-rename-project-input-${project.id}`}
+                        type="text"
+                        autoFocus
+                        value={editingProjectName}
+                        onChange={(e) => setEditingProjectName(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            await handleSaveProjectRename(project.id)
+                          } else if (e.key === 'Escape') {
+                            setEditingProjectId(null)
+                          }
+                        }}
+                        onBlur={async () => {
+                          await handleSaveProjectRename(project.id)
+                        }}
+                        className="w-full rounded border border-[#38bdf8] bg-[#131b2e] px-1.5 py-0.5 text-xs text-white focus:outline-none"
+                      />
+                      <button
+                        data-testid={`sidebar-save-project-rename-btn-${project.id}`}
+                        onMouseDown={async (e) => {
+                          e.preventDefault()
+                          await handleSaveProjectRename(project.id)
+                        }}
+                        className="rounded p-1 text-[#10b981] hover:bg-[#1e293b] cursor-pointer"
+                        title="Save Project Name"
+                      >
+                        <Check className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        className="flex items-center gap-2 truncate flex-1"
+                        onDoubleClick={(e) => handleStartProjectRename(project, e)}
+                      >
+                        {isCollapsed ? (
+                          <ChevronRight className="h-3.5 w-3.5 text-[#64748b] shrink-0" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5 text-[#64748b] shrink-0" />
+                        )}
+                        <Folder className="h-3.5 w-3.5 text-[#38bdf8] shrink-0" />
+                        <span className="font-medium text-[#f8fafc] truncate" title={project.name}>
+                          {project.name}
+                        </span>
+                        <span className="rounded-full bg-[#1e293b] px-1.5 py-0.2 text-[10px] text-[#94a3b8] shrink-0">
+                          {project.requests.length}
+                        </span>
+                      </div>
 
-                  {/* Actions for Project */}
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-                    <button
-                      data-testid={`sidebar-add-request-btn-${project.id}`}
-                      onClick={(e) => handleCreateRequest(project.id, e)}
-                      className="rounded p-1 text-[#94a3b8] hover:bg-[#1e293b] hover:text-[#38bdf8] transition-all"
-                      title="Add Request to this project"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
-                    <button
-                      data-testid={`sidebar-delete-project-btn-${project.id}`}
-                      onClick={(e) => handleDeleteProject(project.id, project.name, e)}
-                      className="rounded p-1 text-[#64748b] hover:bg-[#1e293b] hover:text-[#ef4444] transition-all"
-                      title="Delete Project"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
+                      {/* Actions for Project */}
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                        <button
+                          data-testid={`sidebar-add-request-btn-${project.id}`}
+                          onClick={(e) => handleCreateRequest(project.id, e)}
+                          className="rounded p-1 text-[#94a3b8] hover:bg-[#1e293b] hover:text-[#38bdf8] transition-all cursor-pointer"
+                          title="Add Request to this project"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                        <button
+                          data-testid={`sidebar-rename-project-btn-${project.id}`}
+                          onClick={(e) => handleStartProjectRename(project, e)}
+                          className="rounded p-1 text-[#64748b] hover:bg-[#1e293b] hover:text-[#38bdf8] transition-all cursor-pointer"
+                          title="Rename Project"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </button>
+                        <button
+                          data-testid={`sidebar-delete-project-btn-${project.id}`}
+                          onClick={(e) => handleDeleteProject(project.id, project.name, e)}
+                          className="rounded p-1 text-[#64748b] hover:bg-[#1e293b] hover:text-[#ef4444] transition-all cursor-pointer"
+                          title="Delete Project"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Requests List */}

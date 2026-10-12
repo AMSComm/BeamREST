@@ -97,6 +97,20 @@ export const tauriApi = {
     }
   },
 
+  async renameProject(
+    workspacePath: string,
+    oldName: string,
+    newName: string
+  ): Promise<void> {
+    if (isTauri()) {
+      return await invoke<void>('rename_project_cmd', {
+        workspacePath,
+        oldName,
+        newName,
+      })
+    }
+  },
+
   async deleteProject(workspacePath: string, projectName: string): Promise<void> {
     if (isTauri()) {
       return await invoke<void>('delete_project_cmd', {

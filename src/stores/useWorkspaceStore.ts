@@ -61,6 +61,7 @@ interface WorkspaceState {
   saveActiveRequest: () => Promise<void>
   sendRequest: () => Promise<void>
   createProject: (name: string) => Promise<void>
+  renameProject: (projectId: string, newName: string) => Promise<void>
   deleteProject: (projectId: string) => Promise<void>
   createRequest: (projectId: string, name: string, method?: string) => Promise<void>
   renameRequest: (projectId: string, requestId: string, newName: string) => Promise<void>
@@ -427,6 +428,37 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             : null
           : get().activeRequest,
       response: null,
+    })
+  },
+
+  renameProject: async (projectId: string, newName: string) => {
+    const { workspace } = get()
+    if (!workspace) return
+    const trimmed = newName.trim()
+    if (!trimmed) return
+
+    const targetProj = workspace.projects.find((p) => p.id === projectId)
+    if (!targetProj || targetProj.name === trimmed) return
+
+    const exists = workspace.projects.some(
+      (p) => p.id !== projectId && p.name.toLowerCase() === trimmed.toLowerCase()
+    )
+    if (exists) {
+      set({ error: `Project named "${trimmed}" already exists.` })
+      return
+    }
+
+    const oldName = targetProj.name
+    await tauriApi.renameProject(workspace.path, oldName, trimmed)
+
+    const updatedProjects = workspace.projects.map((p) => {
+      if (p.id !== projectId) return p
+      return { ...p, name: trimmed }
+    })
+
+    set({
+      workspace: { ...workspace, projects: updatedProjects },
+      error: null,
     })
   },
 

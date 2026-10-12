@@ -100,6 +100,36 @@ async function run() {
     if (!(await createdProj.isVisible())) throw new Error('Newly created project not visible in sidebar')
     console.log('✅ New Project created and visible in sidebar')
 
+    // 3.1 Test Project Renaming in Sidebar
+    console.log('✏️ 3.1. Testing Project Renaming in Sidebar...')
+    const projContainer = page.locator('[data-testid^="sidebar-project-header-"]').filter({ hasText: 'Billing Service' })
+    const renameProjBtn = projContainer.locator('button[title="Rename Project"]')
+    await renameProjBtn.click({ force: true })
+    await page.waitForTimeout(200)
+
+    const projRenameInput = page.locator('input[data-testid^="sidebar-rename-project-input-"]').first()
+    await projRenameInput.fill('Billing & Payments')
+    const projSaveRenameBtn = page.locator('button[data-testid^="sidebar-save-project-rename-btn-"]').first()
+    await projSaveRenameBtn.click()
+    await page.waitForTimeout(300)
+
+    const renamedProj = page.locator('aside').getByText('Billing & Payments', { exact: true })
+    if (!(await renamedProj.isVisible())) throw new Error('Renamed project not visible in sidebar')
+    console.log('✅ Project renamed to "Billing & Payments" in sidebar')
+
+    // Rename back to Billing Service so subsequent tests work seamlessly
+    const renamedContainer = page.locator('[data-testid^="sidebar-project-header-"]').filter({ hasText: 'Billing & Payments' })
+    const renameBackBtn = renamedContainer.locator('button[title="Rename Project"]')
+    await renameBackBtn.click({ force: true })
+    await page.waitForTimeout(200)
+
+    const projRenameBackInput = page.locator('input[data-testid^="sidebar-rename-project-input-"]').first()
+    await projRenameBackInput.fill('Billing Service')
+    const projSaveRenameBackBtn = page.locator('button[data-testid^="sidebar-save-project-rename-btn-"]').first()
+    await projSaveRenameBackBtn.click()
+    await page.waitForTimeout(300)
+    console.log('✅ Project renamed back to "Billing Service"')
+
     // 4. Test New Request creation inside Project
     console.log('➕ 4. Testing New Request creation inside Project...')
     const addReqBtn = page.locator('button[title*="Add Request to this project"]').first()

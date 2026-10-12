@@ -30,6 +30,7 @@ pub fn run() {
             open_workspace,
             create_workspace,
             save_project_cmd,
+            rename_project_cmd,
             delete_project_cmd,
             save_request_cmd,
             delete_request_cmd,

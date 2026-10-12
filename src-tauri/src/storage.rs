@@ -541,6 +541,45 @@ pub fn delete_project(workspace_dir_str: &str, project_name: &str) -> Result<(),
     Ok(())
 }
 
+/// Renames a project folder and updates project.json inside it.
+pub fn rename_project(
+    workspace_dir_str: &str,
+    old_name: &str,
+    new_name: &str,
+) -> Result<(), String> {
+    if old_name == new_name {
+        return Ok(());
+    }
+
+    let ws_dir = Path::new(workspace_dir_str);
+    let old_dir = ws_dir.join(old_name);
+    let new_dir = ws_dir.join(new_name);
+
+    if !old_dir.exists() {
+        return Err(format!("Project directory '{}' does not exist", old_name));
+    }
+    if new_dir.exists() {
+        return Err(format!("A project named '{}' already exists", new_name));
+    }
+
+    fs::rename(&old_dir, &new_dir)
+        .map_err(|e| format!("Failed to rename project directory: {}", e))?;
+
+    let proj_file = new_dir.join("project.json");
+    if proj_file.exists() {
+        if let Ok(content) = fs::read_to_string(&proj_file) {
+            if let Ok(mut proj) = serde_json::from_str::<ProjectData>(&content) {
+                proj.name = new_name.to_string();
+                if let Ok(json_content) = serde_json::to_string_pretty(&proj) {
+                    let _ = fs::write(&proj_file, json_content);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Deletes an environment file and its local secrets file from the workspace.
 pub fn delete_environment(workspace_dir_str: &str, env_name: &str) -> Result<(), String> {
     let ws_dir = Path::new(workspace_dir_str);
@@ -774,6 +813,23 @@ mod tests {
         let loaded = scan_workspace(&ws_path).unwrap();
         // Since no environment has id "non-existent-env-id", it should fallback to None
         assert_eq!(loaded.meta.active_environment_id, None);
+    }
+
+    #[test]
+    fn test_rename_project() {
+        let td = TestDir::new();
+        let ws_path = td.path_str();
+
+        let _ = init_workspace(&ws_path, "Test Workspace").unwrap();
+
+        rename_project(&ws_path, "Default Project", "Renamed Project").unwrap();
+
+        let loaded = scan_workspace(&ws_path).unwrap();
+        assert!(loaded.projects.iter().any(|p| p.name == "Renamed Project"));
+        assert!(!loaded.projects.iter().any(|p| p.name == "Default Project"));
+
+        rename_project(&ws_path, "Renamed Project", "Renamed Project").unwrap();
+        assert!(rename_project(&ws_path, "Non Existent", "New Name").is_err());
     }
 }
 

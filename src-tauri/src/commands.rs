@@ -8,9 +8,9 @@ use tauri::command;
 use crate::converter::{export_project_to_postman, export_workspace_to_postman, to_curl};
 use crate::http_client::{execute_request, BeamRequest, BeamResponse, ProxyConfig};
 use crate::storage::{
-    delete_environment, delete_project, delete_request_file, init_workspace, save_environment,
-    save_local_state, save_project, save_request_file, save_workspace_meta, scan_workspace,
-    Environment, LocalState, ProjectData, WorkspaceFull, WorkspaceMeta,
+    delete_environment, delete_project, delete_request_file, init_workspace, rename_project,
+    save_environment, save_local_state, save_project, save_request_file, save_workspace_meta,
+    scan_workspace, Environment, LocalState, ProjectData, WorkspaceFull, WorkspaceMeta,
 };
 
 fn get_app_config_dir() -> Option<PathBuf> {
@@ -76,6 +76,15 @@ pub fn delete_request_cmd(
 #[command]
 pub fn delete_project_cmd(workspace_path: String, project_name: String) -> Result<(), String> {
     delete_project(&workspace_path, &project_name)
+}
+
+#[command]
+pub fn rename_project_cmd(
+    workspace_path: String,
+    old_name: String,
+    new_name: String,
+) -> Result<(), String> {
+    rename_project(&workspace_path, &old_name, &new_name)
 }
 
 #[command]
