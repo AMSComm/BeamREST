@@ -615,9 +615,9 @@ async function run() {
     if (!(await updateDialog.isVisible())) throw new Error('Update modal did not open')
     const updateHeaderText = await page.locator('text="BeamREST Software Update"').isVisible()
     if (!updateHeaderText) throw new Error('Update dialog header missing')
-    const hasCurrentVer = await page.locator('text="Current version: v0.1.4"').isVisible()
-    if (!hasCurrentVer) throw new Error('Update dialog does not show Current version: v0.1.4')
-    console.log('✅ Software Update dialog opened and verified with version v0.1.4')
+    const hasCurrentVer = await page.locator('text="Current version: v0.1.5"').isVisible()
+    if (!hasCurrentVer) throw new Error('Update dialog does not show Current version: v0.1.5')
+    console.log('✅ Software Update dialog opened and verified with version v0.1.5')
     // Close with Escape
     await page.keyboard.press('Escape')
     await page.waitForTimeout(300)

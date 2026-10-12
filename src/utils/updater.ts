@@ -13,7 +13,7 @@ export interface UpdateInfo {
 }
 
 export const CURRENT_VERSION: string =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.1.4'
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.1.5'
 export const GITHUB_REPO = 'AMSComm/BeamREST'
 
 let cachedAppVersion: string | null = null

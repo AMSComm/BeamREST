@@ -5,6 +5,12 @@ All notable changes to **BeamREST** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.5] - 2026-10-12
+
+### Fixed
+- **Dynamic Version Discovery**: Fixed update dialog and header dropdown rendering a stale hardcoded version by dynamically reading the actual version at build time from `package.json` (`__APP_VERSION__`) and at runtime via Tauri core binary inspection (`get_app_version_cmd`).
+- **Reliable In-App Auto-Update Restart**: Resolved macOS process restart suspension after updating. Added native operating system process relaunch command `restart_app_cmd` utilizing `tauri::process::restart` and added a prominent "Restart Now" button on the update dialog for immediate application restart.
+
 ## [v0.1.4] - 2026-10-12
 
 ### Added

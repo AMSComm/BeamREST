@@ -16,8 +16,8 @@ describe('Updater Version Comparison', () => {
   })
 
   it('resolves current app version dynamically without hardcoded mismatch', async () => {
-    expect(CURRENT_VERSION).toBe('0.1.4')
+    expect(CURRENT_VERSION).toBe('0.1.5')
     const resolved = await getAppVersion()
-    expect(resolved).toBe('0.1.4')
+    expect(resolved).toBe('0.1.5')
   })
 })
