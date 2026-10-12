@@ -17,6 +17,7 @@ import {
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 import { isTauri } from '../../services/tauriApi'
+import { CURRENT_VERSION } from '../../utils/updater'
 
 export const Header: React.FC = () => {
   const {
@@ -293,7 +294,7 @@ export const Header: React.FC = () => {
                     <Sparkles className="h-3.5 w-3.5 text-[#f97316]" />
                     <span>Check for Updates...</span>
                   </div>
-                  <span className="font-mono text-[10px] text-[#64748b]">v0.1.0</span>
+                  <span className="font-mono text-[10px] text-[#64748b]">v{CURRENT_VERSION}</span>
                 </button>
               </div>
             </div>
