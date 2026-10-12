@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 
 use serde::{Deserialize, Serialize};
@@ -620,6 +620,7 @@ pub fn save_workspace_meta(workspace_dir_str: &str, meta: &WorkspaceMeta) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     struct TestDir(PathBuf);
     impl TestDir {
