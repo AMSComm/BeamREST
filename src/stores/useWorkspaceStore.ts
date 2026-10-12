@@ -66,6 +66,7 @@ interface WorkspaceState {
   renameProject: (projectId: string, newName: string) => Promise<void>
   deleteProject: (projectId: string) => Promise<void>
   createRequest: (projectId: string, name: string, method?: string) => Promise<void>
+  cloneRequest: (projectId: string, requestId: string) => Promise<void>
   renameRequest: (projectId: string, requestId: string, newName: string) => Promise<void>
   deleteRequest: (projectId: string, requestId: string) => Promise<void>
   setActiveEnvironment: (envId: string | null) => void
@@ -138,6 +139,21 @@ function restoreAndSanitizeRecents(
   }
 
   return sanitized.slice(0, 15)
+}
+
+export function getClonedRequestName(baseName: string, existingNames: string[]): string {
+  const copyPattern = /^(.*) \(Copy(?: (\d+))?\)$/
+  const match = baseName.match(copyPattern)
+  const rootName = match ? match[1] : baseName
+
+  let candidate = `${rootName} (Copy)`
+  let counter = 2
+  const lowerNames = new Set(existingNames.map((n) => n.toLowerCase()))
+  while (lowerNames.has(candidate.toLowerCase())) {
+    candidate = `${rootName} (Copy ${counter})`
+    counter++
+  }
+  return candidate
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -653,6 +669,63 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     })
 
     get().addRecentRequest(projectId, newReq)
+  },
+
+  cloneRequest: async (projectId: string, requestId: string) => {
+    const { workspace, savedRequestSnapshots } = get()
+    if (!workspace) return
+
+    const proj = workspace.projects.find((p) => p.id === projectId)
+    if (!proj) return
+
+    const sourceReq = proj.requests.find((r) => r.id === requestId)
+    if (!sourceReq) return
+
+    const existingNames = proj.requests.map((r) => r.name)
+    const newName = getClonedRequestName(sourceReq.name, existingNames)
+    const newId = 'req-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7)
+
+    const clonedReq: BeamRequest = {
+      ...sourceReq,
+      id: newId,
+      name: newName,
+      headers: sourceReq.headers.map((h) => ({ ...h })),
+      params: sourceReq.params.map((p) => ({ ...p })),
+      auth: sourceReq.auth ? { ...sourceReq.auth } : undefined,
+      extractors: sourceReq.extractors.map((e, idx) => ({
+        ...e,
+        id: `ext-${Date.now()}-${idx}`,
+      })),
+    }
+
+    await tauriApi.saveRequest(workspace.path, proj.name, clonedReq)
+
+    const sourceIdx = proj.requests.findIndex((r) => r.id === requestId)
+    const newRequests = [...proj.requests]
+    if (sourceIdx >= 0) {
+      newRequests.splice(sourceIdx + 1, 0, clonedReq)
+    } else {
+      newRequests.push(clonedReq)
+    }
+
+    const updatedProjects = workspace.projects.map((p) =>
+      p.id === projectId ? { ...p, requests: newRequests } : p
+    )
+
+    set({
+      workspace: { ...workspace, projects: updatedProjects },
+      activeProjectId: projectId,
+      activeRequestId: clonedReq.id,
+      activeRequest: { ...clonedReq },
+      response: null,
+      curlText: null,
+      savedRequestSnapshots: {
+        ...savedRequestSnapshots,
+        [clonedReq.id]: JSON.stringify(clonedReq),
+      },
+    })
+
+    get().addRecentRequest(projectId, clonedReq)
   },
 
   renameRequest: async (projectId: string, requestId: string, newName: string) => {

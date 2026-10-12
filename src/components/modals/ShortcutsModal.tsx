@@ -20,6 +20,7 @@ export const ShortcutsModal: React.FC = () => {
       category: 'Project & Workspace Management',
       items: [
         { keys: ['⌘', 'N'], label: 'Create new request' },
+        { keys: ['⌘', 'D'], label: 'Clone / duplicate active request' },
         { keys: ['⌘', '⇧', 'N'], label: 'Create new project / collection' },
         { keys: ['⌘', 'O'], label: 'Open workspace directory' },
       ],

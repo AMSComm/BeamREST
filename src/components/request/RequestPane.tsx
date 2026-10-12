@@ -7,6 +7,7 @@ import {
   Loader2,
   Edit2,
   Check,
+  Copy,
 } from 'lucide-react'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 import { CodeEditor } from '../common/CodeEditor'
@@ -25,6 +26,7 @@ export const RequestPane: React.FC = () => {
     activeTab,
     updateActiveRequest,
     renameRequest,
+    cloneRequest,
     sendRequest,
     saveActiveRequest,
     isRequestDirty,
@@ -223,6 +225,21 @@ export const RequestPane: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Header Actions */}
+        {currentProject && (
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              data-testid="request-pane-clone-btn"
+              onClick={() => cloneRequest(currentProject.id, activeRequest.id)}
+              className="flex items-center gap-1 rounded bg-[#131b2e] px-2 py-0.5 text-[11px] text-[#94a3b8] hover:text-[#38bdf8] hover:bg-[#1e293b] transition-colors cursor-pointer"
+              title="Clone / Duplicate Request (Cmd+D)"
+            >
+              <Copy className="h-3 w-3" />
+              <span>Clone</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Top URL and Action Bar */}

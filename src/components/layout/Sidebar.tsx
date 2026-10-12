@@ -9,6 +9,7 @@ import {
   Edit2,
   Check,
   Clock,
+  Copy,
 } from 'lucide-react'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 import { BeamRequest } from '../../types'
@@ -32,6 +33,7 @@ export const Sidebar: React.FC = () => {
     isRequestDirty,
     renameProject,
     renameRequest,
+    cloneRequest,
     setNewProjectModalOpen,
     openNewRequestModal,
     openConfirmDelete,
@@ -83,6 +85,15 @@ export const Sidebar: React.FC = () => {
       await renameRequest(projectId, reqId, trimmed)
     }
     setEditingRequestId(null)
+  }
+
+  const handleCloneRequest = async (
+    projectId: string,
+    requestId: string,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation()
+    await cloneRequest(projectId, requestId)
   }
 
   const handleDeleteRequest = (
@@ -316,6 +327,14 @@ export const Sidebar: React.FC = () => {
                                 </div>
 
                                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                                  <button
+                                    data-testid={`sidebar-clone-request-btn-${req.id}`}
+                                    onClick={(e) => handleCloneRequest(project.id, req.id, e)}
+                                    className="rounded p-1 text-[#64748b] hover:bg-[#0f172a] hover:text-[#38bdf8] transition-all cursor-pointer"
+                                    title="Clone Request"
+                                  >
+                                    <Copy className="h-2.5 w-2.5" />
+                                  </button>
                                   <button
                                     data-testid={`sidebar-rename-request-btn-${req.id}`}
                                     onClick={(e) => handleStartRename(req, e)}

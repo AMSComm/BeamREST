@@ -111,6 +111,14 @@ export const App: React.FC = () => {
         e.preventDefault()
         openNewRequestModal()
       }
+      // Cmd+D: Clone Active Request
+      else if (isCmdOrCtrl && !isShift && e.key.toLowerCase() === 'd') {
+        const { activeProjectId, activeRequestId, cloneRequest } = useWorkspaceStore.getState()
+        if (activeProjectId && activeRequestId) {
+          e.preventDefault()
+          cloneRequest(activeProjectId, activeRequestId)
+        }
+      }
       // Cmd+Shift+E: Export Postman
       else if (isCmdOrCtrl && isShift && e.key.toLowerCase() === 'e') {
         e.preventDefault()

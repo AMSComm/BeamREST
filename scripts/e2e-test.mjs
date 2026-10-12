@@ -200,6 +200,55 @@ async function run() {
     await page.waitForTimeout(200)
     console.log('✅ Recent request item clicked and selected')
 
+    // 4.3 Test Request Cloning / Duplicating
+    console.log('📋 4.3. Testing Request Cloning / Duplicating...')
+    const cloneBtn = page.locator('[data-testid="request-pane-clone-btn"]')
+    await cloneBtn.click()
+    await page.waitForTimeout(400)
+
+    const clonedPaneTitle = page.locator('[data-testid="request-pane-name"]')
+    const clonedName = await clonedPaneTitle.textContent()
+    if (clonedName !== 'Get Invoices List (Copy)') {
+      throw new Error(`Expected cloned request name 'Get Invoices List (Copy)', got '${clonedName}'`)
+    }
+    console.log('✅ Request cloned via RequestPane Clone button')
+
+    // Verify cloned request appears in sidebar
+    const clonedSidebarItem = page.locator('[data-testid^="sidebar-request-"]').filter({ hasText: 'Get Invoices List (Copy)' })
+    if (!(await clonedSidebarItem.isVisible())) {
+      throw new Error('Cloned request not visible in sidebar')
+    }
+
+    // Test cloning via Sidebar hover action
+    const sidebarCloneBtn = clonedSidebarItem.locator('button[title="Clone Request"]')
+    await sidebarCloneBtn.click({ force: true })
+    await page.waitForTimeout(400)
+
+    const secondClonedName = await clonedPaneTitle.textContent()
+    if (secondClonedName !== 'Get Invoices List (Copy 2)') {
+      throw new Error(`Expected second cloned request name 'Get Invoices List (Copy 2)', got '${secondClonedName}'`)
+    }
+    console.log('✅ Cloned request cloned again via Sidebar button to "Get Invoices List (Copy 2)"')
+
+    // Clean up both cloned requests so subsequent tests work seamlessly
+    const deleteCopy2Btn = page.locator('[data-testid^="sidebar-request-"]').filter({ hasText: 'Get Invoices List (Copy 2)' }).locator('button[title="Delete Request"]')
+    await deleteCopy2Btn.click({ force: true })
+    await page.waitForTimeout(300)
+    await page.click('button:has-text("Delete")')
+    await page.waitForTimeout(400)
+
+    const deleteCopyBtn = page.locator('[data-testid^="sidebar-request-"]').filter({ hasText: 'Get Invoices List (Copy)' }).locator('button[title="Delete Request"]')
+    await deleteCopyBtn.click({ force: true })
+    await page.waitForTimeout(300)
+    await page.click('button:has-text("Delete")')
+    await page.waitForTimeout(400)
+
+    // Select the original request back
+    const originalReq = page.locator('[data-testid^="sidebar-request-"]').filter({ hasText: 'Get Invoices List' }).first()
+    await originalReq.click()
+    await page.waitForTimeout(300)
+    console.log('✅ Both cloned requests cleaned up and original request active')
+
     // 5. Test Request Configuration (URL, Params, Headers, Body, Auth, Extractors)
     console.log('🔧 5. Testing Request Editor tabs & inputs...')
 
@@ -573,7 +622,7 @@ async function run() {
     if (await updateDialog.isVisible()) throw new Error('Update modal did not close on Escape')
     console.log('✅ Software Update dialog closed on Escape')
 
-    console.log('🎉 ALL 18 PLAYWRIGHT E2E ASSERTIONS PASSED WITH 100% SUCCESS!')
+    console.log('🎉 ALL 19 PLAYWRIGHT E2E ASSERTIONS PASSED WITH 100% SUCCESS!')
   } finally {
     await browser.close()
     if (server) {
