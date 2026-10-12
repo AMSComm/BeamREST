@@ -1,6 +1,6 @@
 [package]
 name = "beamrest"
-version = "0.1.1"
+version = "0.1.2"
 description = "BeamREST - Ultra-lightweight, high-performance REST client"
 authors = ["AM Software <contact@amsoftware.com.vn>"]
 license = "MIT"
