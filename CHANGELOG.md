@@ -5,6 +5,14 @@ All notable changes to **BeamREST** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.4] - 2026-10-12
+
+### Added
+- **Request Cloning / Duplicating**: Added full request duplication capability accessible via the new Clone button in the RequestPane header, hover action in the Sidebar, and `⌘ D` / `Ctrl+D` keyboard shortcut.
+- **Deterministic Clone Naming**: Automatically appends sequential copy counters (`[Name] (Copy)`, `[Name] (Copy 2)`) with case-insensitive collision detection to guarantee safe filesystem persistence.
+- **Deep Configuration Copy**: Clones all headers, query parameters, body data, and authentication rules. Response extractors receive fresh unique IDs to isolate token capture rules between original and duplicate requests.
+- **Immediate Selection & Disk Sync**: Cloned requests are directly saved to disk as `{clone_name}.request.json`, immediately selected as the active request in the workspace, and registered in the Recent Requests history.
+
 ## [v0.1.3] - 2026-10-12
 
 ### Added
