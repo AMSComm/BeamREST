@@ -44,7 +44,9 @@ pub fn run() {
             save_last_workspace_path,
             get_recent_workspaces,
             save_recent_workspace,
-            remove_recent_workspace
+            remove_recent_workspace,
+            get_app_version_cmd,
+            restart_app_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running BeamREST application");

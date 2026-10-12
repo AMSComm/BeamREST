@@ -12,8 +12,10 @@ import {
   type UpdateInfo,
   CURRENT_VERSION,
   GITHUB_REPO,
+  getAppVersion,
   checkForAppUpdates,
   installTauriUpdate,
+  restartApp,
 } from '../../utils/updater'
 
 interface UpdateDialogProps {
@@ -22,6 +24,7 @@ interface UpdateDialogProps {
 }
 
 export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) => {
+  const [currentVersion, setCurrentVersion] = useState<string>(CURRENT_VERSION)
   const [loading, setLoading] = useState(true)
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
   const [downloading, setDownloading] = useState(false)
@@ -34,8 +37,13 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
     setError(null)
     setInstallSuccess(false)
     try {
+      const ver = await getAppVersion()
+      setCurrentVersion(ver)
       const res = await checkForAppUpdates()
       setUpdateInfo(res)
+      if (res.currentVersion) {
+        setCurrentVersion(res.currentVersion)
+      }
       if (res.error) {
         setError(res.error)
       }
@@ -61,10 +69,18 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
     let active = true
     setLoading(true)
     setError(null)
+
+    getAppVersion().then((ver) => {
+      if (active) setCurrentVersion(ver)
+    })
+
     checkForAppUpdates()
       .then((res) => {
         if (!active) return
         setUpdateInfo(res)
+        if (res.currentVersion) {
+          setCurrentVersion(res.currentVersion)
+        }
         if (res.error) setError(res.error)
       })
       .catch((err) => {
@@ -114,7 +130,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
             </div>
             <div>
               <h3 className="font-semibold text-sm text-[#f8fafc]">BeamREST Software Update</h3>
-              <p className="text-[11px] text-[#94a3b8]">Current version: v{CURRENT_VERSION}</p>
+              <p className="text-[11px] text-[#94a3b8]">Current version: v{currentVersion}</p>
             </div>
           </div>
           <button
@@ -183,9 +199,17 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
               )}
 
               {installSuccess && (
-                <div className="rounded-lg bg-[#10b981]/10 border border-[#10b981]/30 p-3 text-xs text-[#6ee7b7] flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-[#10b981] shrink-0" />
-                  <span>Update ready. Restarting BeamREST...</span>
+                <div className="rounded-lg bg-[#10b981]/10 border border-[#10b981]/30 p-3 text-xs text-[#6ee7b7] flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-[#10b981] shrink-0" />
+                    <span>Update installed. Restarting BeamREST...</span>
+                  </div>
+                  <button
+                    onClick={() => restartApp()}
+                    className="rounded bg-[#10b981] px-2.5 py-1 text-[11px] font-semibold text-black hover:bg-[#059669] transition-colors cursor-pointer"
+                  >
+                    Restart Now
+                  </button>
                 </div>
               )}
             </div>
@@ -194,7 +218,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
               <CheckCircle2 className="h-8 w-8 text-[#10b981]" />
               <p className="font-medium text-[#f8fafc] text-sm">BeamREST is up to date</p>
               <p className="text-[11px] text-[#64748b]">
-                Version {CURRENT_VERSION} is currently the newest version available.
+                Version {currentVersion} is currently the newest version available.
               </p>
             </div>
           )}

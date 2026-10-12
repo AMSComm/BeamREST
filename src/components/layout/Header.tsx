@@ -17,9 +17,10 @@ import {
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { useWorkspaceStore } from '../../stores/useWorkspaceStore'
 import { isTauri } from '../../services/tauriApi'
-import { CURRENT_VERSION } from '../../utils/updater'
+import { CURRENT_VERSION, getAppVersion } from '../../utils/updater'
 
 export const Header: React.FC = () => {
+  const [currentVersion, setCurrentVersion] = useState<string>(CURRENT_VERSION)
   const {
     workspace,
     recentWorkspaces,
@@ -45,6 +46,10 @@ export const Header: React.FC = () => {
   useEffect(() => {
     fetchRecentWorkspaces()
   }, [fetchRecentWorkspaces])
+
+  useEffect(() => {
+    getAppVersion().then(setCurrentVersion)
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -294,7 +299,7 @@ export const Header: React.FC = () => {
                     <Sparkles className="h-3.5 w-3.5 text-[#f97316]" />
                     <span>Check for Updates...</span>
                   </div>
-                  <span className="font-mono text-[10px] text-[#64748b]">v{CURRENT_VERSION}</span>
+                  <span className="font-mono text-[10px] text-[#64748b]">v{currentVersion}</span>
                 </button>
               </div>
             </div>

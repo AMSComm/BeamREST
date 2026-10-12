@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use serde_json::Value;
-use tauri::command;
+use tauri::{command, Manager};
 
 use crate::converter::{export_project_to_postman, export_workspace_to_postman, to_curl};
 use crate::http_client::{execute_request, BeamRequest, BeamResponse, ProxyConfig};
@@ -230,4 +230,15 @@ pub fn remove_recent_workspace(path: String) -> Result<Vec<RecentWorkspace>, Str
     }
 
     Ok(list)
+}
+
+#[command]
+pub fn get_app_version_cmd(app: tauri::AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+#[command]
+pub fn restart_app_cmd(app: tauri::AppHandle) {
+    let env = app.env();
+    tauri::process::restart(&env);
 }
