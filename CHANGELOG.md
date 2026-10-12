@@ -5,6 +5,16 @@ All notable changes to **BeamREST** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.3] - 2026-10-12
+
+### Added
+- **Recent Requests Section**: Added a dedicated, persistent Recent Requests panel located directly below the project list in the sidebar. Displays HTTP method badges, request name, and parent project with one-click navigation and an instant history clear action.
+- **Request Renaming**: Added inline request renaming support both in the RequestPane header and Sidebar via double-click or the edit action button, automatically updating filesystem storage and active tabs.
+- **Project Renaming**: Added project renaming directly in the Sidebar with disk directory renaming, internal `project.json` synchronization, and duplicate project name validation while safely preserving all child requests and secrets.
+
+### Improved
+- **Multi-Tier Persistence**: Enhanced workspace local state (`state.local.json`) and localStorage caching to guarantee recent requests, active environments, and workspace configurations are preserved across application restarts.
+
 ## [v0.1.2] - 2026-10-12
 
 ### Fixed
